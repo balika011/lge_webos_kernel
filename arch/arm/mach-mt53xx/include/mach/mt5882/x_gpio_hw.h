@@ -4,7 +4,7 @@
  * Cobra GPIO defines
  *
  * Copyright (c) 2006-2012 MediaTek Inc.
- * $Author: dtvbm11 $
+ * $Author: p4admin $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -41,7 +41,7 @@
 #define ADC2GPIO_CH_ID_MAX	7///5
 #define ADC2GPIO_CH_ID_MIN	1///2
 
-#define SERVO_GPIO1             (230)
+#define SERVO_GPIO1             (228)
 #define SERVO_GPIO0             (SERVO_GPIO1 - 1)//not real gpio, just for judge ather sevoad_gpio function
 
 #define MAX_PDWNC_INT_ID			32	 // Maximum value of PDWNC interrupt id
