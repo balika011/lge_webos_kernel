@@ -15,9 +15,9 @@
 #include <linux/device.h>
 #include <linux/genhd.h>
 #include <linux/mm.h>
+#include <linux/kernel.h>
 
 #include "zram_drv.h"
-extern int xv_phy_freepages;
 
 static u64 zram_stat64_read(struct zram *zram, u64 *v)
 {
@@ -55,84 +55,30 @@ static ssize_t disksize_show(struct device *dev,
 static ssize_t disksize_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
-	int ret;
 	u64 disksize;
+	struct zram_meta *meta;
 	struct zram *zram = dev_to_zram(dev);
 
-	ret = kstrtoull(buf, 10, &disksize);
-	if (ret)
-		return ret;
+	disksize = memparse(buf, NULL);
+	if (!disksize)
+		return -EINVAL;
 
+	disksize = PAGE_ALIGN(disksize);
+	meta = zram_meta_alloc(disksize);
 	down_write(&zram->init_lock);
 	if (zram->init_done) {
 		up_write(&zram->init_lock);
+		zram_meta_free(meta);
 		pr_info("Cannot change disksize for initialized device\n");
 		return -EBUSY;
 	}
 
-	zram->disksize = PAGE_ALIGN(disksize);
+	zram->disksize = disksize;
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
+	zram_init_device(zram, meta);
 	up_write(&zram->init_lock);
 
 	return len;
-}
-
-static ssize_t phyaddr_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct zram *zram = dev_to_zram(dev);
-
-	return sprintf(buf, "0x%lx\n", zram->phyaddr);
-}
-
-static ssize_t phyaddr_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t len)
-{
-	int ret;
-	struct zram *zram = dev_to_zram(dev);
-
-	if (zram->init_done) {
-		pr_info("Cannot change phyaddr for initialized device\n");
-		return -EBUSY;
-	}
-
-	ret = strict_strtoul(buf, 0, &zram->phyaddr);
-	if (ret)
-		return ret;
-
-	return len;
-}
-
-static ssize_t physize_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct zram *zram = dev_to_zram(dev);
-
-	return sprintf(buf, "0x%lx\n", zram->physize);
-}
-
-static ssize_t physize_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t len)
-{
-	int ret;
-	struct zram *zram = dev_to_zram(dev);
-
-	if (zram->init_done) {
-		pr_info("Cannot change physize for initialized device\n");
-		return -EBUSY;
-	}
-
-	ret = strict_strtoul(buf, 0, &zram->physize);
-	if (ret)
-		return ret;
-
-	return len;
-}
-
-static ssize_t phy_freepages_show(struct device *dev,
-        struct device_attribute *attr, char *buf)
-{
-    return sprintf(buf, "%d\n", xv_phy_freepages);
 }
 
 static ssize_t initstate_show(struct device *dev,
@@ -169,11 +115,7 @@ static ssize_t reset_store(struct device *dev,
 	if (bdev)
 		fsync_bdev(bdev);
 
-	down_write(&zram->init_lock);
-	if (zram->init_done)
-		__zram_reset_device(zram);
-	up_write(&zram->init_lock);
-
+	zram_reset_device(zram);
 	return len;
 }
 
@@ -244,22 +186,18 @@ static ssize_t mem_used_total_show(struct device *dev,
 {
 	u64 val = 0;
 	struct zram *zram = dev_to_zram(dev);
+	struct zram_meta *meta = zram->meta;
 
-	if (zram->init_done) {
-		val = xv_get_total_size_bytes(zram->mem_pool) +
-			((u64)(zram->stats.pages_expand) << PAGE_SHIFT);
-	}
+	down_read(&zram->init_lock);
+	if (zram->init_done)
+		val = zs_get_total_size_bytes(meta->mem_pool);
+	up_read(&zram->init_lock);
 
 	return sprintf(buf, "%llu\n", val);
 }
 
 static DEVICE_ATTR(disksize, S_IRUGO | S_IWUSR,
 		disksize_show, disksize_store);
-static DEVICE_ATTR(phyaddr, S_IRUGO | S_IWUSR,
-		phyaddr_show, phyaddr_store);
-static DEVICE_ATTR(physize, S_IRUGO | S_IWUSR,
-		physize_show, physize_store);
-static DEVICE_ATTR(phy_freepages, S_IRUGO | S_IWUSR, phy_freepages_show, NULL);
 static DEVICE_ATTR(initstate, S_IRUGO, initstate_show, NULL);
 static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
 static DEVICE_ATTR(num_reads, S_IRUGO, num_reads_show, NULL);
@@ -273,9 +211,6 @@ static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
 
 static struct attribute *zram_disk_attrs[] = {
 	&dev_attr_disksize.attr,
-	&dev_attr_phyaddr.attr,
-	&dev_attr_physize.attr,
-	&dev_attr_phy_freepages.attr,
 	&dev_attr_initstate.attr,
 	&dev_attr_reset.attr,
 	&dev_attr_num_reads.attr,
