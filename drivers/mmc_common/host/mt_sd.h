@@ -524,7 +524,7 @@ enum {
 #if defined(CC_MT5399) || defined(CONFIG_ARCH_MT5399)|| \
     defined(CC_MT5882) || defined(CONFIG_ARCH_MT5882)
 #define MSDC_CLK_TARGET   200000000, 144000000, 120000000, 100000000, 80000000, 50000000, 50000000, 25000000, 12000000,  0
-#define MSDC_CLK_SRC_VAL   11,   5,   6,  11,  9, 8, 11, 11,  0,  0
+#define MSDC_CLK_SRC_VAL    4,   5,   6,  11,  9, 8, 11, 11,  0,  0
 #define MSDC_CLK_MODE_VAL   1,   1,   1,   0,  1,  1,  2,  0,  0,  0
 #define MSDC_CLK_DIV_VAL    0,   0,   0,   0,  0,  0,  0,  2,  0, 16
 #define MSDC_CLK_DRV_VAL   60,  60,  60,  25, 23, 23, 16,  7,  7,  0
