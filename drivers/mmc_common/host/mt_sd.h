@@ -39,7 +39,7 @@
 #include <linux/mmc/host.h>
 //#include <mach/sync_write.h>
 
-#include <sync_write.h>
+#include "sync_write.h"
 
 
 #define MSDC_0_BASE                  0xF0012000
