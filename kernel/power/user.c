@@ -466,7 +466,7 @@ device_initcall(snapshot_device_init);
 
 #define LGSNAP_IOC_MAGIC		's'
 #define LGSNAP_GET_IMAGE_SIZE		_IOR(LGSNAP_IOC_MAGIC, 1, long)
-#define LGSNAP_CREATE_IMAGE		_IOW(LGSNAP_IOC_MAGIC, 2, int)
+#define LGSNAP_CREATE_IMAGE		_IO(LGSNAP_IOC_MAGIC, 2)
 #define LGSNAP_WRITE_MAGIC		_IO(LGSNAP_IOC_MAGIC, 3)
 #define LGSNAP_IOC_MAXNR		4
 
