@@ -4,7 +4,7 @@
  * MT53xx USB driver
  *
  * Copyright (c) 2008-2012 MediaTek Inc.
- * $Author: dtvbm11 $
+ * $Author: p4admin $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -56,11 +56,6 @@
 #include "mtk_qmu_api.h"
 
 
-#ifndef CONFIG_USB_OC_SUPPORT
-#define CONFIG_USB_OC_SUPPORT  //add this define to enable  Over current function 
-#endif
-
-
 
 #ifdef MUSB_DEBUG
 extern int mgc_debuglevel;
@@ -79,10 +74,10 @@ extern int mgc_debuglevel;
 
 #ifndef DEMO_BOARD
 #ifdef CONFIG_USB_OC_SUPPORT
-static uint8_t u1MUSBVbusEanble = FALSE;   // USB Vbus status, true = Vbus On / false = Vbus off
-static uint8_t u1MUSBOCEnable = FALSE;      // USB OC function enable status, true= enable oc detect /false = not
-static uint8_t u1MUSBOCStatus = FALSE;      // USB OC status, true = oc o / false=oc not cours
-static uint8_t u1MUSBOCPort = 0;      // USB OC port, 1,2,3...
+uint8_t u1MUSBVbusEanble = FALSE;   // USB Vbus status, true = Vbus On / false = Vbus off
+uint8_t u1MUSBOCEnable = FALSE;      // USB OC function enable status, true= enable oc detect /false = not
+uint8_t u1MUSBOCStatus = FALSE;      // USB OC status, true = oc o / false=oc not cours
+uint8_t u1MUSBOCPort = 0;      // USB OC port, 1,2,3...
 #endif
 #endif
 //---------------------------------------------------------------------------
@@ -196,8 +191,8 @@ static int MGC_USBOCThreadMain(void * pvArg)
 	local_irq_save(flags);
 	
 	//OC pin PIMUX SET TO GPIO as input (set pimux &function)
-	*((volatile uint32_t *)0xF000D600) &= ~0x800;  
-	*((volatile uint32_t *)0xF000D724) &= ~0x10000000;
+	//*((volatile uint32_t *)0xF000D600) &= ~0x800;  
+	//*((volatile uint32_t *)0xF000D724) &= ~0x10000000;
 
 	local_irq_restore(flags);
 	
@@ -231,14 +226,21 @@ static int MGC_USBOCThreadMain(void * pvArg)
 						if(bPortNum == MUSB_GADGET_PORT_NUM)
 							continue;
 						#endif
+
+                        //printk("bportNum = %d MUC_aOCGpio[bPortNum] = %d GPIO_value = %d\n",bPortNum,MUC_aOCGpio[bPortNum],mtk_gpio_get_value(MUC_aOCGpio[bPortNum]));
+                        
 						if((MUC_aPwrGpio[bPortNum] != -1) && (MUC_aPortUsing[bPortNum] == 1))
 						{
 							if(MUC_aOCPolarity[bPortNum] == mtk_gpio_get_value(MUC_aOCGpio[bPortNum])){
 								fgOCStatus = TRUE;
-								u1MUSBOCPort=(bPortNum+1);
+								//u1MUSBOCPort=(bPortNum+1);
+                                u1MUSBOCPort |= 1<<bPortNum;
 								}
 							else
+                                {    
+                                u1MUSBOCPort &= ~(1<<bPortNum);
 								fgOCStatus = FALSE;
+                             }
 						}
 					}
 				}				 
@@ -258,6 +260,18 @@ static int MGC_USBOCThreadMain(void * pvArg)
 				msleep(50);
 			} while(u4OCCount < 5);
 			//printk("[OC]do usb upgrade fgOCStatus = %d, u1MUSBOCStatus =%d u1MUSBVbusEanble=%d.\n", fgOCStatus, u1MUSBOCStatus, u1MUSBVbusEanble);				 
+
+
+            if(u1MUSBOCPort != 0)
+                {
+                fgOCStatus = TRUE;
+                }
+            else
+                {
+                fgOCStatus = FALSE;
+                }
+
+            //printk(">>>>>>>>>fgOCStatus = %d u1MUSBOCStatus = %d u1MUSBVbusEanble = %d u1MUSBOCPort = %d\n",fgOCStatus,u1MUSBOCStatus,u1MUSBVbusEanble,u1MUSBOCPort);
 
 			if (fgOCStatus != u1MUSBOCStatus)
 			{	
@@ -298,7 +312,7 @@ static int MGC_USBOCThreadMain(void * pvArg)
 						if(bPortNum == MUSB_GADGET_PORT_NUM)
 							continue;
 						#endif
-						if((MUC_aPwrGpio[bPortNum] != -1) && (MUC_aPortUsing[bPortNum] == 1))
+						if((MUC_aPwrGpio[bPortNum] != -1) && (MUC_aPortUsing[bPortNum] == 1) && (u1MUSBOCPort&(1<<bPortNum)))
 							MGC_VBusControl(bPortNum,FALSE);
 					}
 					#else
@@ -327,7 +341,7 @@ static int MGC_USBOCThreadMain(void * pvArg)
 							if(bPortNum == MUSB_GADGET_PORT_NUM)
 								continue;
 							#endif
-							if((MUC_aPwrGpio[bPortNum] != -1) && (MUC_aPortUsing[bPortNum] == 1))
+							if((MUC_aPwrGpio[bPortNum] != -1) && (MUC_aPortUsing[bPortNum] == 1) && (u1MUSBOCPort&(1<<bPortNum)))
 								MGC_VBusControl(bPortNum,FALSE);
 						}
 						#else
@@ -400,7 +414,7 @@ static ssize_t MUT_write(struct file *file, const char __user *buf, size_t count
 
 static long MUT_ioctl( struct file *file, unsigned int cmd, unsigned long arg)
 {
-    int retval=0;
+    int retval = -ENOTTY;
 
 	switch (cmd) {
 #ifndef DEMO_BOARD
@@ -422,7 +436,7 @@ static long MUT_ioctl( struct file *file, unsigned int cmd, unsigned long arg)
 			return -ENOTTY;
 	}
 
-	return 0;
+	return retval;
 
 }
 

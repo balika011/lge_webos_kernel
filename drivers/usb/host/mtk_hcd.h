@@ -4,7 +4,7 @@
  * MT53xx USB driver
  *
  * Copyright (c) 2008-2012 MediaTek Inc.
- * $Author: dtvbm11 $
+ * $Author: p4admin $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -59,6 +59,10 @@
 #ifdef CONFIG_USB_HOST_DEBUG
 #undef DEBUG
 #define MUSB_DEBUG
+#endif
+
+#ifndef CONFIG_USB_OC_SUPPORT
+#define CONFIG_USB_OC_SUPPORT  //add this define to enable  Over current function 
 #endif
 
 #ifndef TRUE

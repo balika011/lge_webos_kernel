@@ -4,7 +4,7 @@
  * MT53xx USB driver
  *
  * Copyright (c) 2008-2014 MediaTek Inc.
- * $Author: dtvbm11 $
+ * $Author: p4admin $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -62,6 +62,15 @@ extern int MUC_aPwrGpio[MUC_NUM_MAX_CONTROLLER];
 extern int MUC_aPwrPolarity[MUC_NUM_MAX_CONTROLLER];
 extern int MUC_aOCGpio[MUC_NUM_MAX_CONTROLLER];
 extern int MUC_aOCPolarity[MUC_NUM_MAX_CONTROLLER];
+#endif
+
+#ifndef DEMO_BOARD
+#ifdef CONFIG_USB_OC_SUPPORT
+extern uint8_t u1MUSBVbusEanble;   // USB Vbus status, true = Vbus On / false = Vbus off
+extern uint8_t u1MUSBOCEnable;      // USB OC function enable status, true= enable oc detect /false = not
+extern uint8_t u1MUSBOCStatus;      // USB OC status, true = oc o / false=oc not cours
+extern uint8_t u1MUSBOCPort;      // USB OC port, 1,2,3...
+#endif
 #endif
 
 #if defined(CONFIG_ARCH_MT5890) || defined(CONFIG_ARCH_MT5882)
