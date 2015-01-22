@@ -459,6 +459,14 @@ enum {
 /* MSDC_PATCH_BIT1 mask */
 #define MSDC_PATCH_BIT1_WRDAT_CRCS  (0x7 << 0)
 #define MSDC_PATCH_BIT1_CMD_RSP     (0x7 << 3)
+#define CKGEN_MSDC_DLY_SEL_SHIFT        (10)
+#define CKGEN_MSDC_DLY_SEL              ((0x1F) << CKGEN_MSDC_DLY_SEL_SHIFT)
+#define INT_DAT_LATCH_CK_SEL_SHIFT      (7)
+#define INT_DAT_LATCH_CK_SEL            ((0x7)  << INT_DAT_LATCH_CK_SEL_SHIFT)
+#define WRDAT_CRCS_TA_CNTR_SHIFT        (0)
+#define WRDAT_CRCS_TA_CNTR              ((0x7) << WRDAT_CRCS_TA_CNTR_SHIFT)
+#define CMD_RSP_TA_CNTR_SHIFT           (3)
+#define CMD_RSP_TA_CNTR                 ((0x7) << CMD_RSP_TA_CNTR_SHIFT)
 
 /* MSDC_PAD_CTL0 mask */
 #define MSDC_PAD_CTL0_CLKDRVN   (0x7  << 0)     /* RW */
@@ -495,12 +503,33 @@ enum {
 
 /* MSDC_PAD_TUNE mask */
 #define MSDC_PAD_TUNE_CLK_XDLY_SHIFT    (27)
-#define MSDC_PAD_TUNE_CLKTXDLY  (0x1F << PAD_CLK_TXDLY_SHIFT)
-#define MSDC_PAD_TUNE_DATWRDLY  (0x1F << 0)     /* RW */
-#define MSDC_PAD_TUNE_DATRRDLY  (0x1F << 8)     /* RW */
-#define MSDC_PAD_TUNE_CMDRDLY   (0x1F << 16)    /* RW */
-#define MSDC_PAD_TUNE_CMDRRDLY  (0x1FUL << 22)  /* RW */
-#define MSDC_PAD_TUNE_CLKTXDLY  (0x1FUL << 27)  /* RW */
+#define MSDC_PAD_TUNE_CLKTXDLY  (0x1F << MSDC_PAD_TUNE_CLK_XDLY_SHIFT)
+#define MSDC_PAD_TUNE_CMDRRDLY_SHIFT    (22)
+#define MSDC_PAD_TUNE_CMDRRDLY  (0x1F << MSDC_PAD_TUNE_CMDRRDLY_SHIFT) 
+#define MSDC_PAD_TUNE_CMDRDLY_SHIFT     (16)
+#define MSDC_PAD_TUNE_CMDRDLY   (0x1F << MSDC_PAD_TUNE_CMDRDLY_SHIFT)   
+#define MSDC_PAD_TUNE_DATRRDLY_SHIFT    (8)
+#define MSDC_PAD_TUNE_DATRRDLY  (0x1F << MSDC_PAD_TUNE_DATRRDLY_SHIFT)    
+#define MSDC_PAD_TUNE_DATWRDLY_SHIFT    (0)
+#define MSDC_PAD_TUNE_DATWRDLY  (0x1F << MSDC_PAD_TUNE_DATWRDLY_SHIFT)    
+ 
+#define MSDC_IOCON_R_SMPL_SHIFT         (1)    
+#define MSDC_IOCON_R_SMPL               ((0x01) << MSDC_IOCON_R_SMPL_SHIFT)
+#define MSDC_IOCON_D_SMPL_SHIFT         (2) 
+#define MSDC_IOCON_D_SMPL               ((0x01) << MSDC_IOCON_D_SMPL_SHIFT)
+#define MSDC_IOCON_D_DLYLINE_SEL_SHIFT  (3)
+#define MSDC_IOCON_D_DLYLINE_SEL        ((0x01) << MSDC_IOCON_D_DLYLINE_SEL_SHIFT)
+#define MSDC_IOCON_R_D_SMPL_SEL_SHIFT   (5)
+#define MSDC_IOCON_R_D_SMPL_SEL         ((0x01) << MSDC_IOCON_R_D_SMPL_SEL_SHIFT)
+#define MSDC_IOCON_W_D_SMPL_SHIFT       (8)
+#define MSDC_IOCON_W_D_SMPL_SEL         ((0x01) << MSDC_IOCON_W_D_SMPL_SHIFT)
+#define MSDC_IOCON_W_D0SPL_SHIFT        (10)     
+#define MSDC_IOCON_W_D0SPL              ((0x01) << MSDC_IOCON_W_D0SPL_SHIFT)
+
+
+/*DAT_RD_DLY0*/
+#define MSDC_DAT_RDDLY0_D0_SHIFT          (24)
+#define MSDC_DAT_RDDLY0_D0              ((0x1F) << MSDC_DAT_RDDLY0_D0_SHIFT)
 
 /* MSDC_DAT_RDDLY0/1 mask */
 #define MSDC_DAT_RDDLY0_D3      (0x1F << 0)     /* RW */
