@@ -4,7 +4,7 @@
  * MT53xx USB driver
  *
  * Copyright (c) 2008-2012 MediaTek Inc.
- * $Author: dtvbm11 $
+ * $Author: p4admin $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1091,90 +1091,148 @@ static uint16_t MGC_SelectFifoSize(uint16_t wPacketSize)
 
 static MGC_LinuxLocalEnd *MGC_FindEnd(MGC_LinuxCd *pThis, struct urb *pUrb)
 {
-	void *pBase = pThis->pRegs;
-	MGC_LinuxLocalEnd *pEnd = NULL;    
-	MGC_LinuxLocalEnd *pDbgEnd = NULL;		  
-	unsigned int nOut = usb_pipeout(pUrb->pipe);
-	uint16_t wPacketSize = usb_maxpacket(pUrb->dev, pUrb->pipe, nOut);
-	struct usb_device *dev = pUrb->dev;
-	struct usb_host_endpoint *ep = pUrb->ep;
-	struct usb_device_descriptor *pDescriptor = &dev->descriptor;
-	//struct usb_interface_descriptor *d;
-	uint8_t bAddTransaction;   
-	uint16_t wStartAddr = MGC_END0_FIFOSIZE;
-	uint16_t wEndAddr = 0;
-	uint16_t wSize = 0;
-	uint16_t i, j,k;
-	uint8_t bIndex;
-	uint8_t bEnd = 0;
-	uint8_t bEndCount = 0;
-	uint8_t bQmuUsed = 0; 
-	uint8_t bOut = usb_pipeout(pUrb->pipe);
-	
-	DBG(3, "[USB]<== pUrb=%p\n", pUrb);
+    void *pBase = pThis->pRegs;
+    MGC_LinuxLocalEnd *pEnd = NULL;    
+    unsigned int nOut = usb_pipeout(pUrb->pipe);
+    uint16_t wPacketSize = usb_maxpacket(pUrb->dev, pUrb->pipe, nOut);
+    struct usb_device *dev = pUrb->dev;
+    struct usb_host_endpoint *ep = pUrb->ep;
+    struct usb_device_descriptor *pDescriptor = &dev->descriptor;
+#ifdef SUPPORT_SHARE_MGC_END_MSD
+    struct usb_interface_descriptor *d;
+    uint8_t bIsMsdDevice = FALSE;
+    MGC_LinuxLocalEnd *pEndTx = NULL;
+    MGC_LinuxLocalEnd *pEndRx = NULL;
+    uint8_t bEndTx = 0;
+    uint8_t bEndRx = 0;
+#endif
+    uint8_t bAddTransaction;   
+    uint16_t wStartAddr = MGC_END0_FIFOSIZE;
+    uint16_t wEndAddr = 0;
+    uint16_t wSize = 0;
+    uint16_t i, j,k;
+    uint8_t bIndex;
+    uint8_t bEnd = 0;
+    uint8_t bEndCount = 0; //max(bEndRxCount, bEndTxCount)
+    uint8_t bEndCountTmp = 0; // in: bEndRxCount , out: bEndTxCount
+    uint8_t bQmuUsed = 0; 
+    //uint8_t bOut = usb_pipeout(pUrb->pipe);
+    
+    DBG(3, "[USB]<== pUrb=%p\n", pUrb);
 
-	/* control is always EP0, and can always be queued */
-	if (usb_pipecontrol(pUrb->pipe))
-	{
-		DBG(2, "[USB]==> is a control pipe use ep0\n");
-		pEnd = &(pThis->aLocalEnd[EP0][0]); /*0: Rx, 1: Tx*/
+    /* control is always EP0, and can always be queued */
+    if (usb_pipecontrol(pUrb->pipe))
+    {
+        DBG(2, "[USB]==> is a control pipe use ep0\n");
+        pEnd = &(pThis->aLocalEnd[EP0][0]); /*0: Rx, 1: Tx*/
 
 	#ifdef MGC_PRE_CHECK_FREE_ENDPOINT
-		pEnd->bIsOccupy = TRUE;
+        pEnd->bIsOccupy = TRUE;
 	#endif		
-		return pEnd;
-	} 
+        return pEnd;
+    } 
 
-	if (ep->hcpriv)
-	{
-		pEnd = (MGC_LinuxLocalEnd*)ep->hcpriv;
+    if (ep->hcpriv)
+    {
+        pEnd = (MGC_LinuxLocalEnd*)ep->hcpriv;
 	#ifdef MGC_PRE_CHECK_FREE_ENDPOINT
-		pEnd->bIsOccupy = TRUE;
+        pEnd->bIsOccupy = TRUE;
 	#endif
-		return pEnd;
-	}
+        return pEnd;
+    }
 
-	#ifdef MGC_RX_LENGTH_HANDLE
-	if((wPacketSize <= 100) && (usb_pipeisoc(pUrb->pipe)) && (!nOut))
-		wPacketSize *= EXTEND_BUFFER_TIMES;
-	#endif
-	// Handle high speed isochronous transfer, multiple packet part.
-	bAddTransaction = (wPacketSize >> 11) & 0x3;
-	wPacketSize &= 0x7ff;
-	if (bAddTransaction == 1)
-	{
-		wPacketSize = 2*wPacketSize;
-	}
-	else if (bAddTransaction == 2)
-	{
-		wPacketSize = 3*wPacketSize;
-	}
+    INFO("[USB] URB=%p, %s\n",pUrb, ((nOut) ? "Tx" : "Rx"));
+    
+#ifdef SUPPORT_SHARE_MGC_END_MSD
+    d = &dev->actconfig->interface[0]->cur_altsetting->desc;
 
-	wPacketSize = (wPacketSize < 8) ? 8: wPacketSize;
+    /* use a reserved one for bulk if any */
+    if (usb_pipebulk(pUrb->pipe))
+    {        
+        if ( (pDescriptor->bDeviceClass == USB_CLASS_MASS_STORAGE) || 
+             (d->bInterfaceClass == USB_CLASS_MASS_STORAGE) )
+        {
+            bIsMsdDevice = TRUE;
+            INFO("[USB] MASS Storage Device in Port-%d.\n",pThis->bPortNum);
+        }
+    }
 
-	
-	INFO("[USB] Port-%d: New Dev=0x%X, proto=%s, wPacketSize=%d.\n", 
-		pThis->bPortNum, (uint32_t)dev, MGC_DecodeUrbProtocol(pUrb), wPacketSize);
-	INFO("[USB] Port-%d: idVendor=0x%04X, idProduct=0x%04X, bcdDevice=0x%04X.\n", 
-		pThis->bPortNum, (uint32_t)pDescriptor->idVendor, 
-		(uint32_t)pDescriptor->idProduct, (uint32_t)pDescriptor->bcdDevice);
+    
+    if(bIsMsdDevice == TRUE)
+    {
+        if(pThis->bMsdEndTxNum!=0xff) //MSD rx/tx be config at the same time, 0xff means do not config
+        {
+            //MSD endpoint  tx/rx have already config, share the same endpoint & 1024 Bytes fifo
+            if(ep->hcpriv == NULL)
+            {
+                if(pThis->bMsdEndDoubleBuffer == TRUE)
+                {
+                    ep->hcpriv = (void*)(&(pThis->aLocalEnd[EPRX][pThis->bMsdEndRxNum])); // EPMSD == EPRX, MSD tx/rx share the same rx urb list for double buffer feature
+                    pThis->bMsdEndRxUsedCount++;
+                    //INFO("[%s][%d]--**** Tx/Rx count %d ***-----\n",__FUNCTION__,__LINE__,pThis->bMsdEndRxUsedCount);
+                }
+                else
+                {
+                    if(nOut)
+                    {
+                        ep->hcpriv = (void*)(&(pThis->aLocalEnd[EPTX][pThis->bMsdEndTxNum]));
+                        pThis->bMsdEndTxUsedCount++;
+                        //INFO("[%s][%d]--**** Tx count %d ***-----\n",__FUNCTION__,__LINE__,pThis->bMsdEndTxUsedCount);
+                    }
+                    else
+                    {
+                        ep->hcpriv = (void*)(&(pThis->aLocalEnd[EPRX][pThis->bMsdEndRxNum]));
+                        pThis->bMsdEndRxUsedCount++;
+                        //INFO("[%s][%d]--**** Rx count %d ***-----\n",__FUNCTION__,__LINE__,pThis->bMsdEndRxUsedCount);
+                    }
+                }
+            }
+            pEnd = (MGC_LinuxLocalEnd*)ep->hcpriv;
 
-	if ((pThis->bEndTxCount > MUSB_C_NUM_TX_EPS) || (pThis->bEndRxCount > MUSB_C_NUM_RX_EPS))
-	{
-		INFO("Endpoint[Tx:%d][Rx:%d]array out of boundary.\n", pThis->bEndTxCount, pThis->bEndRxCount);
-		return NULL;
-	}
-	if(mtk_usb_suspend()&&((pDescriptor->idProduct==0x7662)||(pDescriptor->idProduct==0x7632)))
-	{
-		is_musb_suspend=0;
-	}
+            INFO("[USB] Port %d: idVendor=0x%04X, idProduct=0x%04X, bcdDevice=0x%04X.\n", 
+                pThis->bPortNum, (uint32_t)pDescriptor->idVendor, 
+                (uint32_t)pDescriptor->idProduct, (uint32_t)pDescriptor->bcdDevice);
+            
+            INFO("[USB] MASS Storage Device in Port-%d share the EP %d prepare to use fifo from %d wMaxPacketSize %d\n",
+                pThis->bPortNum, pThis->bMsdEndTxNum, (pThis->aLocalEnd[EPRX][pThis->bMsdEndRxNum].wFifoAddress), (pThis->aLocalEnd[EPRX][pThis->bMsdEndRxNum].wMaxPacketSize));
+
+            return pEnd;
+        }
+    }
+#endif //#ifdef SUPPORT_SHARE_MGC_END_MSD
+
+    // Handle high speed isochronous transfer, multiple packet part.
+    bAddTransaction = (wPacketSize >> 11) & 0x3;
+    wPacketSize &= 0x7ff;
+    if (bAddTransaction == 1)
+    {
+        wPacketSize = 2*wPacketSize;
+    }
+    else if (bAddTransaction == 2)
+    {
+        wPacketSize = 3*wPacketSize;
+    }
+
+    wPacketSize = (wPacketSize < 8) ? 8: wPacketSize;
+
+    
+    INFO("[USB] Port %d: New Dev=0x%X, proto=%s, wPacketSize=%d.\n", 
+        pThis->bPortNum, (uint32_t)dev, MGC_DecodeUrbProtocol(pUrb), wPacketSize);
+    INFO("[USB] Port %d: idVendor=0x%04X, idProduct=0x%04X, bcdDevice=0x%04X.\n", 
+        pThis->bPortNum, (uint32_t)pDescriptor->idVendor, 
+        (uint32_t)pDescriptor->idProduct, (uint32_t)pDescriptor->bcdDevice);
+
+    if ((pThis->bEndTxCount > MUSB_C_NUM_TX_EPS) || (pThis->bEndRxCount > MUSB_C_NUM_RX_EPS))
+    {
+        INFO("Endpoint[Tx:%d][Rx:%d]array out of boundary.\n", pThis->bEndTxCount, pThis->bEndRxCount);
+        return NULL;
+    }
 
 	switch(wPacketSize)
 	{
 		case 13:
 			wPacketSize=16;
 			break;
-
 		case 17:
 			wPacketSize=32;
 			break;
@@ -1185,184 +1243,427 @@ static MGC_LinuxLocalEnd *MGC_FindEnd(MGC_LinuxCd *pThis, struct urb *pUrb)
 			break;
 
 	}
-	INFO("### [USB]wPacketSize =%d\n",wPacketSize);
-	
-	bEndCount = (pThis->bEndTxCount > pThis->bEndRxCount) ? pThis->bEndTxCount : pThis->bEndRxCount;
-	// Check free fifo. EP1 is for mass storage and share the same fifo with 1024 bytes.
-	wSize = 0;
-	for (i=1; i < bEndCount; i++)
-	{
-		for (j=0; j<2; j++)
-		{
-			pEnd = &(pThis->aLocalEnd[j][i]); /*0: Rx, 1: Tx*/ 
-			wSize += pEnd->wMaxPacketSize;						
-		}
-	}
-	
-	if ((wSize + wPacketSize) > MGC_TOTAL_FIFOSIZE)
-	{
-		INFO("[USB] Fifo not enough !.\n");
-		return NULL;
-	}
-	else
-	{
-		 printk("[USB] Ep request size = %d bytes, Fifo left = %d bytes.\n", 
-					wPacketSize, (MGC_TOTAL_FIFOSIZE - wSize));
-	}
+    
+    bEndCount = (pThis->bEndTxCount > pThis->bEndRxCount) ? pThis->bEndTxCount : pThis->bEndRxCount;
+    
+    // Check free fifo. EP1 is for mass storage and share the same fifo with 1024 bytes.
+    wSize = 0;
+    for (i=1; i < bEndCount; i++)
+    {
+        for (j=0; j<2; j++)
+        {
+            pEnd = &(pThis->aLocalEnd[j][i]); /*0: Rx, 1: Tx*/ 
+            wSize += pEnd->wMaxPacketSize;                      
+        }
+    }
+#ifdef SUPPORT_SHARE_MGC_END_MSD
+    if(bIsMsdDevice == TRUE)
+    {
+        if ((wSize + wPacketSize*2) > MGC_ENDX_FIFOSIZE) //MSD need 1k Bytes for tx and rx
+        {
+            INFO("[USB] Fifo not enough for MSD !.\n");
+            return NULL;
+        }
+        else
+        {
+             INFO("[USB] Fifo left = %d bytes, Ep request size = %d bytes.\n", 
+                        (MGC_ENDX_FIFOSIZE - wSize), wPacketSize*2);
+        }
+    }
+    else
+#endif
+    {
+    if ((wSize + wPacketSize) > MGC_ENDX_FIFOSIZE)
+    {
+        INFO("[USB] Fifo not enough !.\n");
+        return NULL;
+    }
+    else
+    {
+         INFO("[USB] Fifo left = %d bytes, Ep request size = %d bytes.\n", 
+                    (MGC_ENDX_FIFOSIZE - wSize), wPacketSize);
+    }
+    }
 
 #ifdef CONFIG_USB_QMU_SUPPORT
-	bQmuUsed = MGC_IsCmdQUsed(pThis, pUrb);
+    bQmuUsed = MGC_IsCmdQUsed(pThis, pUrb);
 #endif
-	// No endpoint left for this. Possible interrupt endpoint. Search again without check command queue.
-	for (k=1; ((k < bEndCount) && (bEnd == 0)); k++)  /* EP1 is reserve for mass storage */
-	{
-    #ifdef CONFIG_USB_QMU_SUPPORT
-		if((bQmuUsed) || (bOut))
-			i = k;
-		else
-		{			
-			i = (bEndCount - k);
-		}
+
+//search free endpoint
+#ifdef SUPPORT_SHARE_MGC_END_MSD
+    // serch free endpoint for MSD, need 1Tx1Rx
+    if(bIsMsdDevice == TRUE)
+    {
+        //serch the same tx/rx endpoint for MSD double buffer feature
+        bEndCountTmp = (pThis->bEndTxCount <  pThis->bEndRxCount) ? pThis->bEndTxCount : pThis->bEndRxCount;
+        for (k=1; ((k < bEndCountTmp) && (bEndTx == 0)); k++) //pThis->bEndTxCount
+        {
+		#ifdef MUSB_ENDPOINT_TEST
+                i = k;
+		#else
+			#ifdef CONFIG_USB_QMU_SUPPORT
+                if(bQmuUsed)//((bQmuUsed) || (bOut))
+                {
+                    i = k;
+                }
+                else
+			#endif
+                {           
+                    i = (bEndCountTmp - k);
+                }
+		#endif
+            pEndTx = &(pThis->aLocalEnd[EPTX][i]);
+            pEndRx = &(pThis->aLocalEnd[EPRX][i]);
+            if ((pEndTx->wMaxPacketSize ==  0) && (pEndRx->wMaxPacketSize ==  0))
+            {        
+                bEndTx = i;
+                bEndRx = i;
+                INFO("[USB] Tx/Rx Ep %d is free for MSD use.\n", bEndTx);
+                pThis->bMsdEndTxNum = bEndTx;
+                pThis->bMsdEndRxNum = bEndRx;
+                pThis->bMsdEndDoubleBuffer = TRUE;
+                break;
+            }
+        }       
+        //serch the same tx/rx endpoint for MSD double buffer: fail, do not have the same tx/rx endpoint
+        if (bEndTx == 0)
+        {
+            bEndCountTmp = pThis->bEndTxCount;
+            for (k=1; ((k < bEndCountTmp) && (bEndTx == 0)); k++)
+            {
+			#ifdef MUSB_ENDPOINT_TEST
+                    i = k;
+			#else
+				#ifdef CONFIG_USB_QMU_SUPPORT
+                    if(bQmuUsed)//((bQmuUsed) || (bOut))
+                    {
+                        i = k;
+                    }
+                    else
+				#endif
+                    {           
+                        i = (bEndCountTmp - k);
+                    }
+			#endif
+                pEndTx = &(pThis->aLocalEnd[EPTX][i]);
+                if (pEndTx->wMaxPacketSize ==  0)
+                {        
+                    bEndTx = i;
+                    INFO("[USB] Tx Ep %d is free for use.\n", bEndTx);
+                    pThis->bMsdEndDoubleBuffer = FALSE;
+                    pThis->bMsdEndTxNum = bEndTx;
+                    break;
+                }
+            }
+            
+            bEndCountTmp = pThis->bEndRxCount;
+            for (k=1; ((k < bEndCountTmp) && (bEndRx == 0)); k++)
+            {
+				#ifdef MUSB_ENDPOINT_TEST
+                        i = k;
+				#else
+					#ifdef CONFIG_USB_QMU_SUPPORT
+                        if(bQmuUsed)//((bQmuUsed) || (bOut))
+                        {
+                            i = k;
+                        }
+                        else
+					#endif
+                        {           
+                            i = (bEndCountTmp - k);
+                        }
+				#endif
+                pEndRx = &(pThis->aLocalEnd[EPRX][i]);
+                if (pEndRx->wMaxPacketSize ==  0)
+                {        
+                    bEndRx = i;
+                    INFO("[USB] Rx Ep %d is free for use.\n", bEndRx);
+                    pThis->bMsdEndDoubleBuffer = FALSE;
+                    pThis->bMsdEndRxNum = bEndRx;
+                    break;
+                }
+            }
+            if((pThis->bMsdEndTxNum == 0xff)||(pThis->bMsdEndRxNum == 0xff))
+            {
+                INFO("[USB] Not enough endpoint left for MSD.\n");
+                pThis->bMsdEndTxNum = 0xff;
+                pThis->bMsdEndRxNum = 0xff;
+                return NULL;
+            }
+        }
+        //set MSD  "pThis->bMsdEndDoubleBuffer" flag finally, it will be used in fifo setting
+        if((pThis->bMsdEndDoubleBuffer == TRUE) && (MUSB_TX_DPB_SUPPORT==FALSE) && (MUSB_RX_DPB_SUPPORT==FALSE))
+        {
+            pThis->bMsdEndDoubleBuffer = FALSE;
+        }
+        bEnd = bEndRx; //MSD only use bEnd for log info
+    }
+    else
+#endif //#ifdef SUPPORT_SHARE_MGC_END_MSD
+    {
+        //search free endpoint for device, without MSD.
+        // No endpoint left for this. Possible interrupt endpoint. Search again without check command queue.
+        bEndCountTmp = (nOut) ? pThis->bEndTxCount : pThis->bEndRxCount;
+
+        for (k=1; ((k < bEndCountTmp) && (bEnd == 0)); k++)
+        {
+	    #ifdef MUSB_ENDPOINT_TEST
+                i = k;
+		#else
+			#ifdef CONFIG_USB_QMU_SUPPORT
+                if(bQmuUsed)//((bQmuUsed) || (bOut))
+                {
+                    i = k;
+                }
+                else
+			#endif
+                {           
+                    i = (bEndCountTmp - k);
+                }
+		#endif
+        pEnd = &(pThis->aLocalEnd[nOut][i]); /*0: Rx, 1: Tx*/ 
+
+        if (pEnd->wMaxPacketSize ==  0)
+        {        
+            bEnd = i;
+            INFO("[USB] %s Ep %d is free for use.\n", ((nOut) ? "Tx" : "Rx"), bEnd);            
+            break;
+        }
+    }
+
+    if (bEnd == 0)
+    {
+        INFO("[USB] No endpoint left.\n");
+        return NULL;
+    }
+    }
+    
+    // Search the start address of free fifo.
+    wStartAddr = MGC_END0_FIFOSIZE;
+    
+search_again:    
+    
+    for (k=1; k < bEndCount; k++)
+    {
+	#ifdef MUSB_ENDPOINT_TEST
+            i = k;
+	#else
+		#ifdef CONFIG_USB_QMU_SUPPORT
+            if(bQmuUsed)//((bQmuUsed) || (bOut))
+            {
+                i = k;
+            }
+            else
+		#endif
+            {           
+                i = (bEndCount - k);
+            }
 	#endif
-		pEnd = &(pThis->aLocalEnd[nOut][i]); /*0: Rx, 1: Tx*/ 
 
-		if (pEnd->wMaxPacketSize ==  0)
-		{		 
-			bEnd = i;
-			INFO("[USB] %s Ep %d is free for use.\n", ((nOut) ? "Tx" : "Rx"), bEnd);			
-			break;
-		}
-	}
+        for (j=0; j<2; j++)
+        {
+            pEnd = &(pThis->aLocalEnd[j][i]); /*0: Rx, 1: Tx*/ 
 
-	if (bEnd == 0)
-	{
-		INFO("[USB] No endpoint left.\n");
-		return NULL;
-	}
+            // Avoid to use the pEnd->wFifoAddress.
+            if ((pEnd->wMaxPacketSize >  0) && (wStartAddr == pEnd->wFifoAddress))
+            {
+                wStartAddr = pEnd->wFifoAddress + pEnd->wMaxPacketSize;
+                /* 
+                    We need to check again if (wStartAddr == pEnd->wFifoAddress), 
+                    because we allocate fifo not in sequence.
+                */
+                goto search_again;
+            }            
+        }
+    }
 
-	// Search the start address of free fifo.
-	wStartAddr = MGC_END0_FIFOSIZE;
-	
-search_again:	 
-	
-	for (k=1; k < bEndCount; k++)
-	{
-	#ifdef CONFIG_USB_QMU_SUPPORT
-		if((bQmuUsed) || (bOut))
-			i = k;
-		else
-		{			
-			i = (bEndCount - k);
-		}
+    INFO("[USB] %s Ep %d prepare to use fifo from %d.\n", ((nOut) ? "Tx" : "Rx"), bEnd, wStartAddr);
+    
+    // Check if free fifo start address + wPacketSize do not overlap other fifo.
+#ifdef SUPPORT_SHARE_MGC_END_MSD
+    if(bIsMsdDevice == TRUE)
+    {
+        wEndAddr = wStartAddr + wPacketSize*2 -1; // MSD need 1k Bytes for tx and rx
+    }
+    else
+#endif
+    {
+        wEndAddr = wStartAddr + wPacketSize -1;
+    }
+    
+    // Check if wStartAddr and wEndAddr is reasonable ?
+    if (wEndAddr >= MGC_TOTAL_FIFOSIZE)
+    {
+        INFO("[USB] Out of fifo boundary.\n");
+#ifdef SUPPORT_SHARE_MGC_END_MSD
+        if(bIsMsdDevice == TRUE)
+        {
+            pThis->bMsdEndTxNum = 0xff;
+            pThis->bMsdEndRxNum = 0xff;
+        }
+#endif
+        return NULL;
+    }
+    for (k=1; k< bEndCount; k++)
+    {  
+	#ifdef MUSB_ENDPOINT_TEST
+            i = k;
+	#else
+		#ifdef CONFIG_USB_QMU_SUPPORT
+            if(bQmuUsed)//((bQmuUsed) || (bOut))
+            {
+                i = k;
+            }
+            else
+		#endif
+            {           
+                i = (bEndCount - k);
+            }
+	#endif
+        
+        for (j=0; j<2; j++)
+        {
+            pEnd = &(pThis->aLocalEnd[j][i]); /*0: Rx, 1: Tx*/ 
+            
+            //should check all overlap case.
+            if (pEnd->wMaxPacketSize > 0 
+                &&(((pEnd->wFifoAddress <= wEndAddr) &&((pEnd->wFifoAddress +pEnd->wMaxPacketSize) > wEndAddr))
+                    ||((pEnd->wFifoAddress <= wStartAddr) &&((pEnd->wFifoAddress +pEnd->wMaxPacketSize) > wStartAddr))
+                    ||((pEnd->wFifoAddress > wStartAddr) &&((pEnd->wFifoAddress +pEnd->wMaxPacketSize) <= wEndAddr))))
+            {
+                INFO("[USB] %s Ep %d  use fifo %d ~ %d, overlay fifo at %d ~ %d.\n", 
+                    ((nOut) ? "Tx" : "Rx"), bEnd, wStartAddr, wEndAddr, 
+                    pEnd->wFifoAddress, (pEnd->wFifoAddress +pEnd->wMaxPacketSize-1));            
+
+                wStartAddr = pEnd->wFifoAddress + pEnd->wMaxPacketSize;
+                goto search_again;                
+            }            
+        }
+    }
+
+    // Occupy this fifo address.
+#ifdef SUPPORT_SHARE_MGC_END_MSD
+    if(bIsMsdDevice == TRUE)
+    {
+        pEndTx = &(pThis->aLocalEnd[EPTX][pThis->bMsdEndTxNum]);
+        pEndTx->bDoublePacketBuffer = (pThis->bMsdEndDoubleBuffer == TRUE) ? MUSB_TX_DPB_SUPPORT : FALSE;
+        pEndTx->wFifoAddress = wStartAddr + wPacketSize;
+        pEndTx->wMaxPacketSize = wPacketSize;
+	#ifdef MGC_PRE_CHECK_FREE_ENDPOINT
+        pEndTx->bIsOccupy = TRUE;
 	#endif
 
-		for (j=0; j<2; j++)
-		{
-			pEnd = &(pThis->aLocalEnd[j][i]); /*0: Rx, 1: Tx*/ 
-
-			// Avoid to use the pEnd->wFifoAddress.
-			if ((pEnd->wMaxPacketSize >  0) && (wStartAddr == pEnd->wFifoAddress))
-			{
-				wStartAddr = pEnd->wFifoAddress + pEnd->wMaxPacketSize;
-				/* 
-					We need to check again if (wStartAddr == pEnd->wFifoAddress), 
-					because we allocate fifo not in sequence.
-				*/
-				goto search_again;
-			}			 
-		}
-	}
-
-	INFO("[USB] %s Ep %d prepare to use fifo at %d.\n", ((nOut) ? "Tx" : "Rx"), bEnd, wStartAddr);
-	
-	// Check if free fifo start address + wPacketSize do not overlap other fifo.
-	wEndAddr = wStartAddr + wPacketSize -1;
-	
-	// Check if wStartAddr and wEndAddr is reasonable ?
-	if (wEndAddr >= MGC_TOTAL_FIFOSIZE)
-	{
-		INFO("[USB] Out of fifo boundary.\n");
-		return NULL;
-	}
-	for (k=1; k< bEndCount; k++)
-	{  
-	#ifdef CONFIG_USB_QMU_SUPPORT
-		if((bQmuUsed) || (bOut))
-			i = k;
-		else
-		{			
-			i = (bEndCount - k);
-		}
-    #endif
-
-		for (j=0; j<2; j++)
-		{
-			pEnd = &(pThis->aLocalEnd[j][i]); /*0: Rx, 1: Tx*/ 
-			
-			//should check all overlap case.
-			if (pEnd->wMaxPacketSize > 0 
-				&&(((pEnd->wFifoAddress <= wEndAddr) &&((pEnd->wFifoAddress +pEnd->wMaxPacketSize) > wEndAddr))
-					||((pEnd->wFifoAddress <= wStartAddr) &&((pEnd->wFifoAddress +pEnd->wMaxPacketSize) > wStartAddr))
-					||((pEnd->wFifoAddress > wStartAddr) &&((pEnd->wFifoAddress +pEnd->wMaxPacketSize) <= wEndAddr))))
-			{
-				INFO("[USB] %s Ep %d  use fifo %d ~ %d, overlay fifo at %d ~ %d.\n", 
-					((nOut) ? "Tx" : "Rx"), bEnd, wStartAddr, wEndAddr, 
-					pEnd->wFifoAddress, (pEnd->wFifoAddress +pEnd->wMaxPacketSize-1));			  
-
-				wStartAddr = pEnd->wFifoAddress + pEnd->wMaxPacketSize;
-				goto search_again;				  
-			}			 
-		}
-	}
-
-	// Occupy this fifo address.
-	pEnd = &(pThis->aLocalEnd[nOut][bEnd]); /*0: Rx, 1: Tx*/ 
-	pEnd->wFifoAddress = wStartAddr;
-	pEnd->wMaxPacketSize = wPacketSize;
+        pEndRx = &(pThis->aLocalEnd[EPRX][pThis->bMsdEndRxNum]); // EPMSD == EPRX
+        pEndRx->bDoublePacketBuffer = (pThis->bMsdEndDoubleBuffer == TRUE) ? MUSB_RX_DPB_SUPPORT : FALSE;
+        pEndRx->wFifoAddress = wStartAddr;
+        pEndRx->wMaxPacketSize = wPacketSize;
+	#ifdef MGC_PRE_CHECK_FREE_ENDPOINT
+        pEndRx->bIsOccupy = TRUE;
+	#endif
+        
+        if(pThis->bMsdEndDoubleBuffer == TRUE)
+        {
+            ep->hcpriv = (void*)pEndRx; //MSD tx/rx share the same rx urb list for double buffer feature
+            pThis->bMsdEndRxUsedCount++;
+            //INFO("[%s][%d]--**** Rx count %d ***-----\n",__FUNCTION__,__LINE__,pThis->bMsdEndRxUsedCount);
+        }
+        else
+        {
+            if(nOut)
+            {
+                ep->hcpriv = (void*)pEndTx;
+                pThis->bMsdEndTxUsedCount++;
+                //INFO("[%s][%d]--**** Tx count %d ***-----\n",__FUNCTION__,__LINE__,pThis->bMsdEndRxUsedCount);
+            }
+            else
+            {
+                ep->hcpriv = (void*)pEndRx;
+                pThis->bMsdEndRxUsedCount++;
+                //INFO("[%s][%d]--**** Rx count %d ***-----\n",__FUNCTION__,__LINE__,pThis->bMsdEndRxUsedCount);
+            }
+        }
+    }
+    else
+#endif //#ifdef SUPPORT_SHARE_MGC_END_MSD
+    {
+    pEnd = &(pThis->aLocalEnd[nOut][bEnd]); /*0: Rx, 1: Tx*/ 
+    pEnd->wFifoAddress = wStartAddr;
+    pEnd->wMaxPacketSize = wPacketSize;
 #ifdef MGC_PRE_CHECK_FREE_ENDPOINT
-	pEnd->bIsOccupy = TRUE;
+    pEnd->bIsOccupy = TRUE;
 #endif
-	ep->hcpriv = (void*)pEnd;
+    ep->hcpriv = (void*)pEnd;
+    }
 
-	wSize = MGC_SelectFifoSize(wPacketSize);
-			
-	/* save index */
-	bIndex = MGC_Read8(pBase, MGC_O_HDRC_INDEX);
-	MGC_SelectEnd(pBase, bEnd);
-	if (nOut)
-	{
-		wSize = (pEnd->bDoublePacketBuffer) ? (wSize | 0x10) : wSize;
-		MGC_Write8(pBase, MGC_O_HDRC_TXFIFOSZ, wSize);
-		MGC_Write16(pBase, MGC_O_HDRC_TXFIFOADD, wStartAddr >> 3);
-	}
-	else
-	{
-		wSize = (pEnd->bDoublePacketBuffer) ? (wSize | 0x10) : wSize;
-		MGC_Write8(pBase, MGC_O_HDRC_RXFIFOSZ, wSize);
-		MGC_Write16(pBase, MGC_O_HDRC_RXFIFOADD, wStartAddr >> 3);		  
-	}
+    //set fifo
+    wSize = MGC_SelectFifoSize(wPacketSize);
+            
+    /* save index */
+    bIndex = MGC_Read8(pBase, MGC_O_HDRC_INDEX);
+#ifdef SUPPORT_SHARE_MGC_END_MSD
+    if(bIsMsdDevice == TRUE)
+    {
+        MGC_SelectEnd(pBase, bEndTx);
+        wSize = (pEndTx->bDoublePacketBuffer) ? (wSize | 0x10) : wSize;
+        MGC_Write8(pBase, MGC_O_HDRC_TXFIFOSZ, wSize);
+        if(pThis->bMsdEndDoubleBuffer == TRUE)
+        {
+            MGC_Write16(pBase, MGC_O_HDRC_TXFIFOADD, wStartAddr >> 3); //MSD tx/rx share the same 1k fifo for double buffer feature
+        }
+        else
+        {
+            MGC_Write16(pBase, MGC_O_HDRC_TXFIFOADD, (wStartAddr + wPacketSize) >> 3); // MSD without double buffer, rx use the first 512Bytes, tx use the last 512 Bytes
+        }
+        pEndTx->bCmdQEnable = FALSE;
+        
+        MGC_SelectEnd(pBase, bEndRx);
+        wSize = (pEndRx->bDoublePacketBuffer) ? (wSize | 0x10) : wSize;
+        MGC_Write8(pBase, MGC_O_HDRC_RXFIFOSZ, wSize);
+        MGC_Write16(pBase, MGC_O_HDRC_RXFIFOADD, wStartAddr >> 3);        
+        pEndRx->bCmdQEnable = FALSE;
+    }
+    else
+#endif //#ifdef SUPPORT_SHARE_MGC_END_MSD
+    {
+    MGC_SelectEnd(pBase, bEnd);
+    if (nOut)
+    {
+        wSize = (pEnd->bDoublePacketBuffer) ? (wSize | 0x10) : wSize;
+        MGC_Write8(pBase, MGC_O_HDRC_TXFIFOSZ, wSize);
+        MGC_Write16(pBase, MGC_O_HDRC_TXFIFOADD, wStartAddr >> 3);
+    }
+    else
+    {
+        wSize = (pEnd->bDoublePacketBuffer) ? (wSize | 0x10) : wSize;
+        MGC_Write8(pBase, MGC_O_HDRC_RXFIFOSZ, wSize);
+        MGC_Write16(pBase, MGC_O_HDRC_RXFIFOADD, wStartAddr >> 3);        
+    }
+        pEnd->bCmdQEnable = FALSE;
 
-	/* restore index */
-	MGC_Write8(pBase, MGC_O_HDRC_INDEX, bIndex);
+    }
+    /* restore index */
+    MGC_Write8(pBase, MGC_O_HDRC_INDEX, bIndex);
 
-	if(MGC_GetDebugEnalbe())
-	{
-	// Debug information for all fifo allocation.	 
-	for (i=1; i< bEndCount; i++)
-	{
-		for (j=0; j<2; j++)
-		{
-			pDbgEnd = &(pThis->aLocalEnd[j][i]); /*0: Rx, 1: Tx*/ 
-			printk("[USB] Port-%d: %s Ep %d use fifo at %d, size=%d, DB=%d.\n", 
-				pThis->bPortNum, ((j) ? "Tx" : "Rx"), i, 
-				pDbgEnd->wFifoAddress, pDbgEnd->wMaxPacketSize, 
-				pDbgEnd->bDoublePacketBuffer);		
-		}
-	}
-	}
-	pEnd->bCmdQEnable = FALSE;
-	return pEnd;
+    if(MGC_GetDebugEnalbe())
+    {
+    // Debug information for all fifo allocation.    
+    for (i=1; i< bEndCount; i++)
+    {
+        for (j=0; j<2; j++)
+        {
+            pEnd = &(pThis->aLocalEnd[j][i]); /*0: Rx, 1: Tx*/ 
+            INFO("[USB] Port-%d: %s Ep %d use fifo at %d, size=%d, DB=%d.\n", 
+            pThis->bPortNum, ((j) ? "Tx" : "Rx"), i, 
+            pEnd->wFifoAddress, pEnd->wMaxPacketSize, 
+            pEnd->bDoublePacketBuffer);     
+        }
+    }
+    }
+    pEnd = (MGC_LinuxLocalEnd*)ep->hcpriv;
+    
+    return pEnd;
 }
+
 
 void MGC_CallbackUrb(MGC_LinuxCd *pThis, struct urb *pUrb)
 {
@@ -4655,7 +4956,7 @@ static void MUC_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *
         pEnd = (MGC_LinuxLocalEnd*)hep->hcpriv;
         if (pEnd)
         {
-            //INFO("[USB]MUC_endpoint_disable: h/w %s ep%d.\n", (pEnd->bIsTx ? "Out": "In"), pEnd->bEnd);           
+            INFO("[USB]MUC_endpoint_disable: h/w %s ep%d.\n", (pEnd->bIsTx ? "Out": "In"), pEnd->bEnd);           
 
            	//unlink all urbs on this ep
        		while(!MGC_IsEndIdle(pEnd)){
@@ -4676,7 +4977,7 @@ static void MUC_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *
             if (pEnd->bCmdQEnable)
             {
             	  QMU_disable_q(pThis, pEnd->bEnd, !pEnd->bIsTx);
-	          }
+            }
             #endif
 			
 #ifndef SUPPORT_SHARE_MGC_END_MSD
@@ -4704,11 +5005,12 @@ static void MUC_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *
 			else if ((!pEnd->bIsTx) && (pEnd->bEnd == pThis->bMsdEndRxNum))
 			{
 				pThis->bMsdEndRxUsedCount--;
+                //INFO("[%s][%d]--**** Tx count %d ***-----\n",__FUNCTION__,__LINE__,pThis->bMsdEndRxUsedCount);
 				if(pThis->bMsdEndRxUsedCount == 0)
 				{
 					if((pThis->bMsdEndDoubleBuffer == TRUE)&&(pThis->bMsdEndTxUsedCount == 0)) // If double buffer case, need clean rx/tx wMaxPacketSize at the same time
 					{
-						//INFO("[USB]MUC_endpoint_disable: free msd Tx ep(DBP).\n");
+						INFO("[USB]MUC_endpoint_disable: free msd Tx ep(DBP).\n");
 						
 						pEndTx = (MGC_LinuxLocalEnd *)(&(pThis->aLocalEnd[EPTX][pThis->bMsdEndTxNum])); // EPMSD == EPRX
 						pEndTx->wFifoAddress = MGC_END0_FIFOSIZE;
@@ -4721,7 +5023,7 @@ static void MUC_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *
 						#endif
 					}
 					
-					//INFO("[USB]MUC_endpoint_disable: free msd Rx ep.\n");
+					INFO("[USB]MUC_endpoint_disable: free msd Rx ep.\n");
 					pEnd->wFifoAddress = MGC_END0_FIFOSIZE;
 					pEnd->wMaxPacketSize = 0;
 					pThis->bMsdEndRxNum = 0xff;
@@ -4738,7 +5040,7 @@ static void MUC_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *
 				pThis->bMsdEndTxUsedCount--;
 				if(pThis->bMsdEndTxUsedCount == 0)
 				{
-					//INFO("[USB]MUC_endpoint_disable: free msd Tx ep.\n");
+					INFO("[USB]MUC_endpoint_disable: free msd Tx ep.\n");
 					pEnd->wFifoAddress = MGC_END0_FIFOSIZE;
 					pEnd->wMaxPacketSize = 0;
 					pThis->bMsdEndTxNum = 0xff;
@@ -4750,7 +5052,7 @@ static void MUC_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *
 					#endif
 				}
 			}
-			#endif
+#endif
         }
     }
 

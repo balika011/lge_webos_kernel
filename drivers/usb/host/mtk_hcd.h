@@ -440,7 +440,7 @@ End of MTK created register definition.
 #define MUSB_TX_DPB_SUPPORT     TRUE
 #define MUSB_RX_DPB_SUPPORT     TRUE
 
-//#define SUPPORT_SHARE_MGC_END_MSD
+#define SUPPORT_SHARE_MGC_END_MSD
 //#define MUSB_ENDPOINT_TEST //Just for test. defined it: endpoint will be used from 1 to x;	undefined it:  from x to 1.
 
 #define MGC_END_MSD  		(pThis->bEndTxCount - 1) /* this is non-configurable */
