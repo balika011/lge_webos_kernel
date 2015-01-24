@@ -5923,7 +5923,7 @@ static int msdc_drv_suspend(struct platform_device *pdev, pm_message_t state)
     struct msdc_host *host = mmc_priv(mmc);
     u32  base = host->base;
 
-    if (mmc && (state.event == PM_EVENT_SUSPEND) && (host->hw->flags & MSDC_SYS_SUSPEND)) { /* will set for card */
+    if (mmc && (state.event == PM_EVENT_SUSPEND || state.event == PM_EVENT_FREEZE) && (host->hw->flags & MSDC_SYS_SUSPEND)) { /* will set for card */
         if (mmc)
         ret = mmc_suspend_host(mmc);
         msdc_clksrc_onoff(host,0);
