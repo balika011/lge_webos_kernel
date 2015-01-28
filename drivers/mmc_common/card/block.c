@@ -710,14 +710,341 @@ cmd_err:
 #ifdef CONFIG_MTKMSDC_PARTITION
 extern mtk_partition mtk_msdc_partition;
 #endif
+
+#define MMC_IOC_PON_ON _IO(MMC_BLOCK_MAJOR, 1)
+#define MMC_IOC_PON_SHORT _IO(MMC_BLOCK_MAJOR, 2)
+#define MMC_IOC_PON_LONG _IO(MMC_BLOCK_MAJOR, 3) 
+#define ARGU_NO_POWER_NOTIFICATION    0x00
+#define ARGU_POWER_ON                 0x01
+#define ARGU_POWER_OFF_SHORT          0x02
+#define ARGU_POWER_OFF_LONG           0x03
+#define MMC_IOC_GET_EXTCSD _IO(MMC_BLOCK_MAJOR, 4) 
+#define MMC_IOC_VENDOR_CMD _IO(MMC_BLOCK_MAJOR, 5)  
+#define MMC_IOC_READ_SINGLE _IO(MMC_BLOCK_MAJOR, 6)   
+#define MMC_IOC_GET_CID _IO(MMC_BLOCK_MAJOR, 7)  
+#define MMC_IOC_GEN_CMD_WR _IO(MMC_BLOCK_MAJOR, 8)
+#define MMC_IOC_GEN_CMD_RD _IO(MMC_BLOCK_MAJOR, 9)
+#define MMC_IOC_READ_MULTIPLE _IO(MMC_BLOCK_MAJOR, 10)   
+#define MMC_IOC_GEN_CMD _IO(MMC_BLOCK_MAJOR, 11) 
+#define MMC_IOC_CLAIM_HOST _IO(MMC_BLOCK_MAJOR, 12)
+#define MMC_IOC_RELEASE_HOST _IO(MMC_BLOCK_MAJOR, 13)
+static int mmc_blk_ioctl_cmd_simple(struct block_device *bdev,
+	unsigned int user_cmd, unsigned long user_arg)
+{
+	struct mmc_blk_data *md;
+	struct mmc_card *card;
+	struct mmc_command cmd = {0};
+	struct mmc_data data = {0};
+	struct mmc_request mrq = {0};
+	struct scatterlist sg;
+	int err = 0, i;
+  unsigned char *buff;
+  unsigned long vendor_cmd[2] = {0};
+  unsigned long normal_cmd[4] = {0};
+
+	/*
+	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
+	 * whole block device, not on a partition.  This prevents overspray
+	 * between sibling partitions.
+	 */
+	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
+		return -EPERM;
+
+	printk("mmc_blk_ioctl_cmd_simple -> PON\n");
+	
+  if(_IOC_NR(user_cmd) <= 3)
+  {
+    printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> PON\n");
+    cmd.opcode = MMC_SWITCH;
+    cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
+		                                  (34 << 16) |
+		                    (_IOC_NR(user_cmd) << 8) |
+		                       EXT_CSD_CMD_SET_NORMAL;
+    cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
+    cmd.cmd_timeout_ms = 0;
+  }
+  else if((_IOC_NR(user_cmd) == 4) ||
+  	      (_IOC_NR(user_cmd) == 6) ||
+  	      (_IOC_NR(user_cmd) == 8) ||
+  	      (_IOC_NR(user_cmd) == 9))
+  {
+    buff = kzalloc(0x200, GFP_KERNEL);
+    if (!buff) 
+    {
+      printk(KERN_ERR "alloc 0x200 bytes buffer failed!\n");
+		  err = -ENOMEM;
+		  return err;
+    }
+
+    if(_IOC_NR(user_cmd) == 4)
+    {
+      printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> Get EXTCSD\n");
+      cmd.opcode = MMC_SEND_EXT_CSD;
+    }
+    else if(_IOC_NR(user_cmd) == 6)
+    {
+		printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> Single Read\n");
+      cmd.opcode = MMC_READ_SINGLE_BLOCK;
+      cmd.arg = 0x0;
+    }
+    else if(_IOC_NR(user_cmd) == 8)
+    {
+    	printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> General Command(write)\n");
+      cmd.opcode = 56;
+      cmd.arg = 0x0;
+    }
+    else if(_IOC_NR(user_cmd) == 9)
+    {
+    	printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> General Command(read)\n");
+      cmd.opcode = 56;
+      cmd.arg = 0x1;
+    }
+    else
+    {
+    }
+    cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
+    cmd.cmd_timeout_ms = 0;
+
+    data.sg = &sg;
+    data.sg_len = 1;
+    data.blksz = 0x200;
+    data.blocks = 1;
+
+    sg_init_one(data.sg, buff, 0x200);
+    if(_IOC_NR(user_cmd) == 8)
+    {
+      data.flags = MMC_DATA_WRITE;
+    }
+    else
+    {
+    	data.flags = MMC_DATA_READ;
+    }
+
+    mrq.data = &data;
+  }
+  else if((_IOC_NR(user_cmd) == 10) ||
+  	      (_IOC_NR(user_cmd) == 11))
+  {
+  	if (copy_from_user((void *)normal_cmd, (void __user*)user_arg, 4*sizeof(unsigned long))) {
+      err = -EFAULT;
+      goto cmd_rel_host;
+    }
+    
+    buff = kzalloc(normal_cmd[2], GFP_KERNEL);
+    if (!buff) 
+    {
+      printk(KERN_ERR "alloc 0x%08x bytes buffer failed!\n", normal_cmd[2]);
+		  err = -ENOMEM;
+		  return err;
+    }  	
+    
+    if(_IOC_NR(user_cmd) == 10)
+    {
+      printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> General Command(read)\n");
+      cmd.opcode = 18;
+    }
+    else if(_IOC_NR(user_cmd) == 11)
+    {
+      printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> General Command(read/write)\n");
+      cmd.opcode = 56;	
+    }
+    cmd.arg = normal_cmd[0];
+    cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
+    cmd.cmd_timeout_ms = 0;
+
+    data.sg = &sg;
+    data.sg_len = 1;
+    data.blksz = 0x200;
+    data.blocks = normal_cmd[2]/0x200;
+
+    sg_init_one(data.sg, buff, normal_cmd[2]);
+    if(_IOC_NR(user_cmd) == 10)
+    {
+      data.flags = MMC_DATA_READ;
+    }
+    else if(_IOC_NR(user_cmd) == 11)
+    {
+    	if(normal_cmd[0] & 0x1)
+    	  data.flags = MMC_DATA_READ;	
+    	else
+    		data.flags = MMC_DATA_WRITE;	
+    }
+    mrq.data = &data;
+  }
+  else if(_IOC_NR(user_cmd) == 5)
+  {
+    printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> Smart Report\n");
+    if(copy_from_user((void *)vendor_cmd, (void __user*)user_arg, 2*sizeof(unsigned long)))
+    {
+        err = -EFAULT;
+        return err;	
+    }
+    cmd.opcode = vendor_cmd[0];	
+    cmd.arg = vendor_cmd[1];
+    if(vendor_cmd[0] == 60)
+    {
+        cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;	
+    }
+    else
+    {
+        cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+    }
+    cmd.cmd_timeout_ms = 0;
+  }
+  else if(_IOC_NR(user_cmd) == 7)
+  {
+    printk(KERN_ERR "==mmc_blk_ioctl_cmd_simple -> Get CID\n");
+    
+    md = mmc_blk_get(bdev->bd_disk);
+    if (!md) {
+		  err = -EINVAL;
+		  goto cmd_done;
+	  }
+	
+    card = md->queue.card;
+	if (IS_ERR(card)) {
+		  err = PTR_ERR(card);
+		  goto cmd_done;
+	}
+	  
+    if(copy_to_user((void __user*)user_arg, (void *)(card->raw_cid), 4*sizeof(u32)))
+    {
+        err = -EFAULT;
+        return err;	
+    }	
+    
+    return err;
+  }
+  else if((_IOC_NR(user_cmd) == 12) ||
+  	      (_IOC_NR(user_cmd) == 13))
+  {
+      // nothing to do for futher handle	
+  }
+  else
+  {
+  	  // It will reaturn directly if the command not supported 
+      return err;	
+  }
+
+	mrq.cmd = &cmd;
+
+	md = mmc_blk_get(bdev->bd_disk);
+	if (!md) {
+		err = -EINVAL;
+		goto cmd_done;
+	}
+
+	card = md->queue.card;
+	if (IS_ERR(card)) {
+		err = PTR_ERR(card);
+		goto cmd_done;
+	}
+	
+	// write the data into the buffer
+  if((_IOC_NR(user_cmd) == 8))
+  {
+    if (copy_from_user(buff, (void __user*)user_arg, 0x200)) {
+      err = -EFAULT;
+      goto cmd_rel_host;
+    }
+  }
+  
+  if((_IOC_NR(user_cmd) == 11)&&(!(normal_cmd[0] & 0x1)))
+  {
+    if (copy_from_user(buff, (void __user*)normal_cmd[1], normal_cmd[2])) {
+      err = -EFAULT;
+      goto cmd_rel_host;
+    }	
+  }
+  
+  if(_IOC_NR(user_cmd) == 12)
+  {
+  	printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> mmc_claim_host\n");
+  	mmc_claim_host(card->host);
+    return err;	
+  }
+  if(_IOC_NR(user_cmd) == 13)
+  {
+  	printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> mmc_release_host\n");
+    mmc_release_host(card->host);
+    return err;	
+  }
+
+	//mmc_claim_host(card->host);
+
+	mmc_wait_for_req(card->host, &mrq);
+
+	if (cmd.error) {
+		dev_err(mmc_dev(card->host), "%s: cmd error %d\n",
+						__func__, cmd.error);
+		err = cmd.error;
+		goto cmd_rel_host;
+	}
+   
+  // read single-block data from the buffer 
+  if((_IOC_NR(user_cmd) == 4) ||
+     (_IOC_NR(user_cmd) == 6) ||
+     (_IOC_NR(user_cmd) == 9))
+  {
+    if (data.error) {
+      dev_err(mmc_dev(card->host), "%s: data error %d\n",
+						    __func__, data.error);
+      err = data.error;
+      goto cmd_rel_host;
+    }
+
+    if (copy_to_user((void __user*)user_arg, buff, 0x200)) {
+      err = -EFAULT;
+      goto cmd_rel_host;
+    }
+  }
+  
+  // read multiple-block data from the buffer
+  if((_IOC_NR(user_cmd) == 10) ||
+  	 ((_IOC_NR(user_cmd) == 11)&&(normal_cmd[0] & 0x1)))
+  {
+    if (data.error) {
+      dev_err(mmc_dev(card->host), "%s: data error %d\n",
+						    __func__, data.error);
+      err = data.error;
+      goto cmd_rel_host;
+    }
+
+    if (copy_to_user((void __user*)normal_cmd[1], buff, normal_cmd[2])) {
+      err = -EFAULT;
+      goto cmd_rel_host;
+    }	
+  }
+
+cmd_rel_host:
+	//mmc_release_host(card->host);
+
+cmd_done:
+	mmc_blk_put(md);
+  if((_IOC_NR(user_cmd) == 4) ||
+     (_IOC_NR(user_cmd) == 6) ||
+     (_IOC_NR(user_cmd) == 8) ||
+     (_IOC_NR(user_cmd) == 9) ||
+     (_IOC_NR(user_cmd) == 10) ||
+     (_IOC_NR(user_cmd) == 11))
+    kfree(buff);
+	return err;
+}
+
 static int mmc_blk_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned int cmd, unsigned long arg)
 {
 	int ret = -EINVAL;
 	if (cmd == MMC_IOC_CMD)
+	{
 		ret = mmc_blk_ioctl_cmd(bdev, (struct mmc_ioc_cmd __user *)arg);
-  else if(cmd == 0xFFF0)
-  {
+	}
+    else
+    {
+        ret = mmc_blk_ioctl_cmd_simple(bdev, cmd, arg);
+    }
+	if(cmd == 0xFFF0)
+	{
     mtk_mmc_deviceinfo.blk_size = 0x200;
     mtk_mmc_deviceinfo.chipsize_in_blk = get_capacity(bdev->bd_disk);
     mtk_mmc_deviceinfo.erasesize_in_blk =0x0;
