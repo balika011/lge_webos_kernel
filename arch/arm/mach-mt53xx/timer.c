@@ -226,7 +226,7 @@ static cycle_t clksrc_read(struct clocksource *cs)
     return ~(((unsigned long long)time_hi1 << 32) + (unsigned long long)time_lo1);
 }
 
-#if !defined(CONFIG_ARCH_MT5890)
+#if !defined(CONFIG_ARCH_MT5890)&&!defined(CONFIG_ARCH_MT5882)
 static u32 notrace mt53xx_read_sched_clock(void)
 {
     return ~(__bim_readl(HP_TIMER_REG_L));
@@ -371,13 +371,13 @@ void __init mt53xx_timer_init(void)
 
     /* Init MT53xx clk */
     mt53xx_clk_init();
-#if !defined(CONFIG_ARCH_MT5890)
+#if !defined(CONFIG_ARCH_MT5890)&&!defined(CONFIG_ARCH_MT5882)
     setup_sched_clock(mt53xx_read_sched_clock, 32, _u4SysClock);
 #endif
     mt53xx_twd_init();
 
     #if !defined(CONFIG_USE_OF)
-    #if defined(CONFIG_ARCH_MT5890) || defined(CONFIG_ARCH_MT5891)
+    #if defined(CONFIG_ARCH_MT5890) || defined(CONFIG_ARCH_MT5891)||defined(CONFIG_ARCH_MT5882)
     arch_mt53xx_arm_timer_init();
     #endif // CONFIG_ARCH_MT5890
     #endif
