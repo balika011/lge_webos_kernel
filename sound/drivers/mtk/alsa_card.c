@@ -4,7 +4,7 @@
 * MTK Sound Card Driver
 *
 * Copyright (c) 2010-2012 MediaTek Inc.
-* $Author: dtvbm11 $
+* $Author: p4admin $
 * 
 * This program is free software; you can redistribute it and/or modify
 * it under the terms of the GNU General Public License version 2 as
@@ -48,7 +48,7 @@
 #define MAX_PCM_SUBSTREAMS  8
 #else
   #ifndef MTK_AUDIO_SUPPORT_MULTI_STREAMOUT 
-#define MAX_PCM_DEVICES     1
+#define MAX_PCM_DEVICES     2
 #define MAX_PCM_SUBSTREAMS  2
   #else
 #define MAX_PCM_DEVICES     4
@@ -61,7 +61,7 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;   /* ID for this card */
 static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 0};
 
 #ifndef MTK_AUDIO_SUPPORT_MULTI_STREAMOUT
-static int pcm_devs[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};
+static int pcm_devs[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 2};
 #else
 static int pcm_devs[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 4};
 #endif
@@ -91,7 +91,7 @@ static int __devinit snd_mt85xx_probe(struct platform_device *devptr)
 #endif
     for (idx = 0; idx < MAX_PCM_DEVICES && idx < pcm_devs[dev]; idx++)
     {
-        if ((err = snd_card_mt85xx_pcm(mt85xx, idx, MAX_PCM_SUBSTREAMS)) < 0)
+        if ((err = snd_card_mt85xx_pcm(mt85xx, idx+6, MAX_PCM_SUBSTREAMS)) < 0)
             goto __nodev;
     }
 
