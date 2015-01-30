@@ -1906,7 +1906,7 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
         rawcmd |= (2 << 11);
 		if (host->autocmd & MSDC_AUTOCMD12)
             rawcmd |= (1 << 28);
-    } else if (opcode == MMC_READ_SINGLE_BLOCK) {
+    } else if ((opcode == MMC_READ_SINGLE_BLOCK) || ( (56 == opcode) && (cmd->arg == 1) )) {
         rawcmd |= (1 << 11);
     } else if (opcode == MMC_WRITE_MULTIPLE_BLOCK) {
     	     if(cmd->data->blocks > 1)
@@ -1915,7 +1915,7 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
         	rawcmd |= ((1 << 11) | (1 << 13));
 		if (host->autocmd & MSDC_AUTOCMD12)
             rawcmd |= (1 << 28);
-    } else if (opcode == MMC_WRITE_BLOCK) {
+    } else if ((opcode == MMC_WRITE_BLOCK) || ( (56 == opcode) && (cmd->arg == 0))) {
         rawcmd |= ((1 << 11) | (1 << 13));
     } else if (opcode == SD_IO_RW_EXTENDED) {
         if (cmd->data->flags & MMC_DATA_WRITE)
@@ -5663,6 +5663,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 		mmc->caps |= MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
 				MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104;
 		mmc->caps2 |= MMC_CAP2_HS200_1_8V_SDR;
+		mmc->caps2 |= MMC_CAP2_POWEROFF_NOTIFY;//for LG PON
 	}
 	if(hw->flags & MSDC_DDR)
 				mmc->caps |= MMC_CAP_UHS_DDR50|MMC_CAP_1_8V_DDR;

@@ -711,6 +711,21 @@ cmd_err:
 extern mtk_partition mtk_msdc_partition;
 #endif
 
+static int mmc_can_poweroff_notify(const struct mmc_card *card)
+{
+	//if(card)
+	//{
+		//printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> card:%08x\n",card);
+	//}
+	//printk(KERN_ERR "ZJ mmc_blk_ioctl_cmd_simple -> mmc_card_mmc(card):%d\n",mmc_card_mmc(card));
+	//printk(KERN_ERR "ZJ mmc_blk_ioctl_cmd_simple -> EXT_CSD_POWER_ON:%d\n",EXT_CSD_POWER_ON);
+	//printk(KERN_ERR "ZJ mmc_blk_ioctl_cmd_simple -> card->ext_csd.power_off_notification:%d\n",card->ext_csd.power_off_notification);
+	//printk(KERN_ERR "ZJ mmc_blk_ioctl_cmd_simple -> card && mmc_card_mmc(card) && (card->ext_csd.power_off_notification == EXT_CSD_POWER_ON):%08x\n",card && mmc_card_mmc(card) && (card->ext_csd.power_off_notification == EXT_CSD_POWER_ON));
+	return card &&
+		mmc_card_mmc(card) &&
+		(card->ext_csd.power_off_notification == EXT_CSD_POWER_ON);
+}
+
 #define MMC_IOC_PON_ON _IO(MMC_BLOCK_MAJOR, 1)
 #define MMC_IOC_PON_SHORT _IO(MMC_BLOCK_MAJOR, 2)
 #define MMC_IOC_PON_LONG _IO(MMC_BLOCK_MAJOR, 3) 
@@ -738,9 +753,9 @@ static int mmc_blk_ioctl_cmd_simple(struct block_device *bdev,
 	struct mmc_request mrq = {0};
 	struct scatterlist sg;
 	int err = 0, i;
-  unsigned char *buff;
-  unsigned long vendor_cmd[2] = {0};
-  unsigned long normal_cmd[4] = {0};
+	unsigned char *buff;
+	unsigned long vendor_cmd[2] = {0};
+	unsigned long normal_cmd[4] = {0};
 
 	/*
 	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
@@ -749,25 +764,59 @@ static int mmc_blk_ioctl_cmd_simple(struct block_device *bdev,
 	 */
 	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
 		return -EPERM;
-
-	printk("mmc_blk_ioctl_cmd_simple -> PON\n");
 	
-  if(_IOC_NR(user_cmd) <= 3)
-  {
-    printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> PON\n");
-    cmd.opcode = MMC_SWITCH;
-    cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
-		                                  (34 << 16) |
-		                    (_IOC_NR(user_cmd) << 8) |
-		                       EXT_CSD_CMD_SET_NORMAL;
-    cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
-    cmd.cmd_timeout_ms = 0;
-  }
-  else if((_IOC_NR(user_cmd) == 4) ||
+	if(_IOC_NR(user_cmd) <= 3)
+	{
+		printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> PON,%d\n",_IOC_NR(user_cmd));
+		
+		md = mmc_blk_get(bdev->bd_disk);
+		if (!md) 
+		{
+			err = -EINVAL;
+			goto cmd_done;
+		}
+		
+		card = md->queue.card;
+		if (IS_ERR(card)) 
+		{
+			err = PTR_ERR(card);
+			goto cmd_done;
+		}
+			
+		if (mmc_can_poweroff_notify(card))
+		{		
+			unsigned int timeout = card->ext_csd.generic_cmd6_time;
+			int err;
+
+			/* Use EXT_CSD_POWER_OFF_SHORT as default notification type. */
+			if (_IOC_NR(user_cmd) == EXT_CSD_POWER_OFF_LONG)
+			{
+				timeout = card->ext_csd.power_off_longtime;
+			}
+			//printk(KERN_ERR "~~~~~~~mmc_blk_ioctl_cmd_simple -> PON,timeout :%d\n",timeout);
+			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+					 EXT_CSD_POWER_OFF_NOTIFICATION,
+					 _IOC_NR(user_cmd), timeout);
+			if (err)
+				pr_err("%s: err: %d, Power Off Notification timed out, %u\n",
+					   mmc_hostname(card->host), err, timeout);
+
+			/* Disable the power off notification after the switch operation. */
+			//card->ext_csd.power_off_notification = EXT_CSD_NO_POWER_NOTIFICATION;
+			card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200);
+			
+			return err;
+		}
+		else 	
+		{
+			return -1;
+		}
+	}
+	else if((_IOC_NR(user_cmd) == 4) ||
   	      (_IOC_NR(user_cmd) == 6) ||
   	      (_IOC_NR(user_cmd) == 8) ||
   	      (_IOC_NR(user_cmd) == 9))
-  {
+	{
     buff = kzalloc(0x200, GFP_KERNEL);
     if (!buff) 
     {
