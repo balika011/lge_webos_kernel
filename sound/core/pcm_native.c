@@ -182,8 +182,9 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		params->rate_num = 0;
 		params->rate_den = 0;
 	}
-
-	for (k = SNDRV_PCM_HW_PARAM_FIRST_MASK; k <= SNDRV_PCM_HW_PARAM_LAST_MASK; k++) {
+	
+//Don't need to mask empty
+/*	for (k = SNDRV_PCM_HW_PARAM_FIRST_MASK; k <= SNDRV_PCM_HW_PARAM_LAST_MASK; k++) {
 		m = hw_param_mask(params, k);
 		if (snd_mask_empty(m))
 			return -EINVAL;
@@ -202,7 +203,7 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		if (changed < 0)
 			return changed;
 	}
-
+*/
 	for (k = SNDRV_PCM_HW_PARAM_FIRST_INTERVAL; k <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL; k++) {
 		i = hw_param_interval(params, k);
 		if (snd_interval_empty(i))
