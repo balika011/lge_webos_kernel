@@ -324,29 +324,15 @@ int platform_cpu_disable(unsigned int cpu)
 extern void __cpuinit platform_smp_prepare_cpus_wakeup(void);
 extern void __cpuinit platform_smp_prepare_cpus_boot(void);
 
-void mt53xx_Core1StubSimple(void)
+unsigned int _tzcorestart = 0;
+static int __init tzcorestart(char* str)
 {
-#if defined(CONFIG_ARCH_MT5890)||defined(CONFIG_ARCH_MT5882)
-    unsigned int addr = 0xf0008068, magic = 0xffffb007;
-
-    __asm__ ("isb");
-
-    __asm__ ("LOOP:");
-    __asm__ ("wfe");
-    __asm__ ("MOV     r0, %0" : : "r" (addr));
-    __asm__ ("MOV     r1, %0" : : "r" (magic));
-    __asm__ ("ldr     r2, [r0]");
-    __asm__ ("cmp     r2, r1");
-    __asm__ ("bne     LOOP");
-
-    addr = 0xf0008188;
-
-    __asm__ ("MOV     r0, %0" : : "r" (addr));
-    __asm__ ("ldr     r1, [r0]");
-    __asm__ ("blx     r1");
-#endif // defined(CONFIG_ARCH_MT5890)
+    get_option(&str, &_tzcorestart);
+    return 0;
 }
+early_param("tzcorestart", tzcorestart);
 
+extern void mt53xx_Core1StubSimple(void);
 void __ref mt53xx_cpu_boot(unsigned int cpu)
 {
    #if defined(CONFIG_ARCH_MT5890) ||defined(CONFIG_ARCH_MT5882) ||defined(CONFIG_ARCH_MT5883) || defined(CONFIG_ARCH_MT5891)
@@ -365,6 +351,8 @@ void __ref mt53xx_cpu_boot(unsigned int cpu)
         #ifdef CC_TRUSTZONE_SUPPORT
         // printk("mt53xx_cpu_boot is not handling trustzone correctly!!\n");
         #endif //CC_TRUSTZONE_SUPPORT
+		printk(KERN_NOTICE "_tzcorestart 0x%x\n", _tzcorestart);
+		__raw_writel(_tzcorestart,0xf0008060);
         memcpy((void *)0xF2020000, mt53xx_Core1StubSimple, 0x100);
     }
 	#endif
@@ -389,8 +377,11 @@ void __ref mt53xx_cpu_boot(unsigned int cpu)
     }
 
     printk(KERN_NOTICE "we turn on CPU%u\n", cpu);
-
+    
+    printk(KERN_NOTICE "we turn1 on CPU%u\n", cpu);
     platform_smp_prepare_cpus_wakeup();
+	
+    printk(KERN_NOTICE "we turn2 on CPU%u\n", cpu);
     #endif // CONFIG_ARCH_MT5890
 }
 

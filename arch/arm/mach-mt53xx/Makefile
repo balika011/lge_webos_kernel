@@ -27,6 +27,7 @@ obj-$(CONFIG_MT53XX_NATIVE_GPIO)+= gpio6896.o pdwnc_gpio6896.o
 obj-$(CONFIG_HOTPLUG_CPU)       += hotplug.o
 obj-$(CONFIG_HOTPLUG_CPU)       += cpu_pwr.o
 obj-$(CONFIG_HOTPLUG_CPU)       += mt_cache_v7.o
+obj-$(CONFIG_HOTPLUG_CPU)       += hotplug_core1.o
 
 # CKGEN
 obj-$(CONFIG_ARCH_MT5396)       += ckgen6896.o
