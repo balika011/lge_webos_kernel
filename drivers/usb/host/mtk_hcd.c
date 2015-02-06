@@ -5785,5 +5785,23 @@ static void __exit MUC_cleanup(void)
 }
 
 /*-------------------------------------------------------------------------*/
+
+
+/*
+For LGA5LR LG_USER_INITCALL code porting
+*/
+#ifdef CONFIG_USER_INITCALL_USB
+int usb_mtk_hcd_init(void)
+{
+    printk("===== usb_mtk_hcd_init =====\n");
+	return MUC_init();
+}
+user_initcall_grp("USB", usb_mtk_hcd_init);
+
+#else
 module_init(MUC_init);
+#endif
+
+//module_init(MUC_init);
+
 module_exit(MUC_cleanup);

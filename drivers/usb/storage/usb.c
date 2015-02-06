@@ -1099,4 +1099,25 @@ static struct usb_driver usb_storage_driver = {
 	.soft_unbind =	1,
 };
 
+
+#ifdef CONFIG_USER_INITCALL_USB
+int usb_storage_driver_init(void)
+{
+    printk("===== usb_storage_driver_init =====\n");
+    return usb_register(&usb_storage_driver);
+}
+
+static void __exit usb_storage_driver_exit(void)
+{
+    return usb_deregister(&usb_storage_driver);
+}
+
+user_initcall_grp("USB", usb_storage_driver_init);
+module_exit(usb_storage_driver_exit);
+
+#else
 module_usb_driver(usb_storage_driver);
+
+#endif
+
+//module_usb_driver(usb_storage_driver);

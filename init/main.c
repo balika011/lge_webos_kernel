@@ -861,6 +861,8 @@ static void __init do_user_initcalls_setup(void)
 	 */
 	if (!proc_create("usercalls", 0666, NULL, &proc_usercalls_fops))
 		pr_err("Error: unable to make proc usercalls.\n");
+    printk("create usercalls successfully!\n");
+
 }
 #endif
 
