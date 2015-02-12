@@ -726,6 +726,71 @@ static int mmc_can_poweroff_notify(const struct mmc_card *card)
 		(card->ext_csd.power_off_notification == EXT_CSD_POWER_ON);
 }
 
+/*
+ * Read extended CSD.
+ */
+static int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
+{
+	int err = 0;
+	u8 *ext_csd;
+
+	BUG_ON(!card);
+	BUG_ON(!new_ext_csd);
+
+	*new_ext_csd = NULL;
+
+	if (card->csd.mmca_vsn < CSD_SPEC_VER_4)
+		return 0;
+	/*
+	 * As the ext_csd is so large and mostly unused, we don't store the
+	 * raw block in mmc_card.
+	 */
+
+	ext_csd = kmalloc(512, GFP_KERNEL);
+	if (!ext_csd) {
+		pr_err("%s: could not allocate a buffer to "
+			"receive the ext_csd.\n", mmc_hostname(card->host));
+		return -ENOMEM;
+	}
+	err = mmc_send_ext_csd(card, ext_csd);
+	if (err) 
+	{
+		kfree(ext_csd);
+		*new_ext_csd = NULL;
+		/* If the host or the card can't do the switch,
+		 * fail more gracefully. */
+		if ((err != -EINVAL)
+		 && (err != -ENOSYS)
+		 && (err != -EFAULT))
+			return err;
+
+		/*
+		 * High capacity cards should have this "magic" size
+		 * stored in their CSD.
+		 */
+		if (card->csd.capacity == (4096 * 512)) 
+		{
+			pr_err("%s: unable to read EXT_CSD "
+				"on a possible high capacity card. "
+				"Card will be ignored.\n",
+				mmc_hostname(card->host));
+		} 
+		else 
+		{
+			pr_warning("%s: unable to read "
+				"EXT_CSD, performance might "
+				"suffer.\n",
+				mmc_hostname(card->host));
+			err = 0;
+		}
+	} 
+	else
+	{
+		*new_ext_csd = ext_csd;
+	}
+	return err;
+}
+
 #define MMC_IOC_PON_ON _IO(MMC_BLOCK_MAJOR, 1)
 #define MMC_IOC_PON_SHORT _IO(MMC_BLOCK_MAJOR, 2)
 #define MMC_IOC_PON_LONG _IO(MMC_BLOCK_MAJOR, 3) 
@@ -812,8 +877,34 @@ static int mmc_blk_ioctl_cmd_simple(struct block_device *bdev,
 			return -1;
 		}
 	}
-	else if((_IOC_NR(user_cmd) == 4) ||
-  	      (_IOC_NR(user_cmd) == 6) ||
+	else if(_IOC_NR(user_cmd) == 4)
+	{
+		
+		int err = 0;
+		md = mmc_blk_get(bdev->bd_disk);
+		if (!md) {
+			err = -EINVAL;
+			goto cmd_done;
+		}
+
+		card = md->queue.card;
+		if (IS_ERR(card)) {
+			err = PTR_ERR(card);
+			goto cmd_done;
+		}
+		
+		buff = kzalloc(0x200, GFP_KERNEL);
+		err = mmc_get_ext_csd(card, &buff);
+		printk(KERN_ERR "ZJ mmc_blk_ioctl_cmd_simple -> Lifetime:%08x\n",buff[0x10c]);
+		if (copy_to_user((void __user*)user_arg, buff, 0x200)) 
+		{
+		  err = -EFAULT;
+		  goto cmd_rel_host;
+		}
+		kfree(buff);
+		return err;
+	}  
+	else if((_IOC_NR(user_cmd) == 6) ||
   	      (_IOC_NR(user_cmd) == 8) ||
   	      (_IOC_NR(user_cmd) == 9))
 	{
@@ -825,28 +916,23 @@ static int mmc_blk_ioctl_cmd_simple(struct block_device *bdev,
 		  return err;
     }
 
-    if(_IOC_NR(user_cmd) == 4)
-    {
-      printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> Get EXTCSD\n");
-      cmd.opcode = MMC_SEND_EXT_CSD;
-    }
     else if(_IOC_NR(user_cmd) == 6)
     {
 		printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> Single Read\n");
-      cmd.opcode = MMC_READ_SINGLE_BLOCK;
-      cmd.arg = 0x0;
+		cmd.opcode = MMC_READ_SINGLE_BLOCK;
+		cmd.arg = 0x0;
     }
     else if(_IOC_NR(user_cmd) == 8)
     {
     	printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> General Command(write)\n");
-      cmd.opcode = 56;
-      cmd.arg = 0x0;
+		cmd.opcode = 56;
+		cmd.arg = 0x0;
     }
     else if(_IOC_NR(user_cmd) == 9)
     {
     	printk(KERN_ERR "mmc_blk_ioctl_cmd_simple -> General Command(read)\n");
-      cmd.opcode = 56;
-      cmd.arg = 0x1;
+		cmd.opcode = 56;
+		cmd.arg = 0x1;
     }
     else
     {
