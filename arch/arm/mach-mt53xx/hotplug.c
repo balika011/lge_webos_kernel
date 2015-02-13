@@ -58,6 +58,8 @@ static inline void __bim_writel(u32 regval32, u32 regaddr32)
 extern void __inner_flush_dcache_all(void);
 extern void __inner_flush_dcache_L1(void);
 extern void __inner_flush_dcache_L2(void);
+extern void __disable_dcache__inner_flush_dcache_L1__inner_clean_dcache_L2(void);   //definition in mt_cache_v7.S
+extern void __disable_dcache__inner_flush_dcache_L1__inner_flush_dcache_L2(void);   //definition in mt_cache_v7.S
 
 void inner_dcache_flush_all(void)
 {
@@ -82,6 +84,8 @@ static inline void cpu_enter_lowpower(unsigned int cpu)
     if ((mt53xx_get_ic_version() > IC_VER_MT5890_AC) && ((cpu==3 && cpu_online(2)==0) || (cpu==2 && cpu_online(3)==0)))
     {
 
+		__disable_dcache__inner_flush_dcache_L1__inner_flush_dcache_L2();
+#if 0
         /* Clear the SCTLR C bit to prevent further data cache allocation */
 	asm volatile(
 		"mcr	p15, 0, %1, c7, c5, 0\n"    // invalidate entire instruction cache
@@ -98,14 +102,14 @@ static inline void cpu_enter_lowpower(unsigned int cpu)
 
         /* Clean and invalidate all data from the L1, L2 data cache */
         inner_dcache_flush_all();
-
+#endif
         /* Switch the processor from SMP mode to AMP mode by clearing the ACTLR SMP bit */
     	asm volatile(
     	"	mrc	p15, 0, %0, c1, c0, 1\n"
     	"	bic	%0, %0, %3\n"		    // ACTLR.SMP | ACTLR.FW
     	"	mcr	p15, 0, %0, c1, c0, 1\n"
     	  : "=&r" (v)
-    	  : "r" (0), "Ir" (CR_C), "Ir" (0x41)
+    	  : "r" (0), "Ir" (CR_C), "Ir" (0x40)
     	  : "cc");
 
         isb();
@@ -115,6 +119,8 @@ static inline void cpu_enter_lowpower(unsigned int cpu)
     }
     else
     {
+	   __disable_dcache__inner_flush_dcache_L1__inner_clean_dcache_L2();
+#if 0	
     	asm volatile(
     		"mcr	p15, 0, %1, c7, c5, 0\n"    // invalidate entire instruction cache
     	"	mcr	p15, 0, %1, c7, c10, 4\n"   // dsb
@@ -131,7 +137,7 @@ static inline void cpu_enter_lowpower(unsigned int cpu)
         dsb();
         /* Clean and invalidate all data from the L1 data cache */
         inner_dcache_flush_L1();
-
+#endif
     	udelay(2000);
     	__asm__ __volatile__("clrex"); // Execute a CLREX instruction
     	asm volatile(
@@ -139,7 +145,7 @@ static inline void cpu_enter_lowpower(unsigned int cpu)
     	"	bic	%0, %0, %3\n"		    // ACTLR.SMP | ACTLR.FW
     	"	mcr	p15, 0, %0, c1, c0, 1\n"
     	  : "=&r" (v)
-    	  : "r" (0), "Ir" (CR_C), "Ir" (0x41)
+    	  : "r" (0), "Ir" (CR_C), "Ir" (0x40)
     	  : "cc");
     	isb();
     }
@@ -161,14 +167,14 @@ static inline void cpu_leave_lowpower(unsigned int cpu)
 	dsb();
 	isb();
 	asm volatile(
-		"mrc	p15, 0, %0, c1, c0, 0\n"
-	"	orr	%0, %0, %1\n"		    // enable D cache
-	"	mcr	p15, 0, %0, c1, c0, 0\n"
-	"	mrc	p15, 0, %0, c1, c0, 1\n"
-	"	orr	%0, %0, %2\n"		    // ACTLR.SMP | ACTLR.FW
-	"	mcr	p15, 0, %0, c1, c0, 1\n"
-	  : "=&r" (v)
-	  : "Ir" (CR_C), "Ir" (0x41)
+		"	mrc p15, 0, %0, c1, c0, 1\n"
+		"	orr %0, %0, %2\n"			// ACTLR.SMP
+		"	mcr p15, 0, %0, c1, c0, 1\n"
+		"	mrc p15, 0, %0, c1, c0, 0\n"
+		"	orr %0, %0, %1\n"			// enable D cache
+		"	mcr p15, 0, %0, c1, c0, 0\n"
+		  : "=&r" (v)
+		  : "Ir" (CR_C), "Ir" (0x40)
 	  : "cc");
 }
 
