@@ -100,6 +100,7 @@ struct timer_list card_detect_timer;	/* card detection timer */
 
 #define MSDC_GPIO_MAX_NUMBERS 6     
 int MSDC_Gpio[MSDC_GPIO_MAX_NUMBERS]= {0} ;
+int MSDC_EMMClog[1] = {0};
 #ifdef CC_SDMMC_SUPPORT
 
 static struct resource mt_resource_msdc1[] = 
@@ -2017,6 +2018,37 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 					rawarg = MMC_TRIM_ARG;
 			}
 #endif
+
+	unsigned int val = MSDC_EMMClog[0];
+	if(val == 1)
+	{
+				unsigned int val = MSDC_EMMClog[0];
+				ERR_MSG(":[EMMC Read]:CMD%d, CMD arg:(0x%08x),val=0x%08x,rawarg = 0x%08x\n",cmd->opcode,cmd->arg,val,rawarg);
+		if ((cmd->opcode == MMC_READ_SINGLE_BLOCK) || (cmd->opcode == MMC_READ_MULTIPLE_BLOCK) ||
+		 (cmd->opcode == MMC_WRITE_BLOCK) || (cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK) ||
+		 (cmd->opcode == MMC_ERASE_GROUP_START) || (cmd->opcode == MMC_ERASE_GROUP_END) || (cmd->opcode == MMC_SWITCH))
+		{
+			 unsigned long long arg;
+			 unsigned int size;
+		
+			size = cmd->data?cmd->data->blocks:0;
+			if ((cmd->opcode == MMC_READ_SINGLE_BLOCK) || (cmd->opcode == MMC_READ_MULTIPLE_BLOCK))
+				N_MSG(CMD,":[EMMC Read]:CMD%d, CMD arg:(0x%08x),BlockCount:0x%08x\n",cmd->opcode,cmd->arg * 512,size *512);
+			if ((cmd->opcode == MMC_WRITE_BLOCK) || (cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK))
+				N_MSG(CMD,":[EMMC Write]:CMD%d, CMD arg:(0x%08x),BlockCount:0x%08x\n",cmd->opcode,cmd->arg *512 ,size *512);
+			if (cmd->opcode == MMC_ERASE_GROUP_START)
+				N_MSG(CMD,":[EMMC ERASE]:CMD%d, erase_start = %08x\n",cmd->opcode,erase_start * 512);
+				//pr_warn(":[EMMC ERASE]: start addr: 0x%llx\n", arg);
+			if (cmd->opcode == MMC_ERASE_GROUP_END)
+				N_MSG(CMD,":[EMMC ERASE]:CMD%d, erase_end = %08x\n",cmd->opcode,erase_end * 512);
+				//pr_warn(":[EMMC ERASE]: end addr: 0x%llx\n", arg);
+			if (cmd->opcode == MMC_SWITCH)
+			{ 
+				 if ((size & 0xffffff00) == 0x3200100)
+					N_MSG(CMD,":[EMMC FLUSH]:CMD%d, 0x%08x\n",cmd->opcode, size * 512); 
+			}		
+		}
+	}
 
     sdc_send_cmd(rawcmd, rawarg);
 
@@ -5862,7 +5894,7 @@ static int __init MSDCGPIO_CommonParamParsing(char *str, int *pi4Dist)
         tmp[j]=0;
 
         pi4Dist[i] = (int)simple_strtol(&tmp[0], NULL, 10);
-        printk(KERN_ERR"Parse Done: msdc [%d] = %d \n", i, pi4Dist[i]);
+        printk(KERN_ERR "Parse Done: msdc [%d] = %d \n", i, pi4Dist[i]);
         
         str += (len+1);
     }
@@ -5879,6 +5911,32 @@ static int __init MSDC_GpioParseSetup(char *str)
 
 __setup("msdcgpio=", MSDC_GpioParseSetup);
 
+
+static int __init MSDCEMMClog_CommonParamParsing(char *str, int *pi4Dist)
+{
+    if(strlen(str) != 0)
+	{      
+        printk(KERN_ERR "Parsing String = %s \n",str);
+    }
+    else
+	{
+        printk(KERN_ERR "Parse Error!!!!! string = NULL\n");
+        return 0;
+    }
+
+	pi4Dist[0] = (int)simple_strtol(str, NULL, 10);
+	printk(KERN_ERR "Parse Done: emmclog = %d \n", pi4Dist[0]);
+          
+    return 1;
+
+}
+
+static int __init MSDC_EMMClogParseSetup(char *str)
+{
+    return MSDCEMMClog_CommonParamParsing(str,&MSDC_EMMClog[0]);
+}
+
+__setup("emmclog=", MSDC_EMMClogParseSetup);
 
 
 /* 4 device share one driver, using "drvdata" to show difference */
