@@ -55,6 +55,32 @@ static int __init early_initrd(char *p)
 }
 early_param("initrd", early_initrd);
 
+#if defined(CONFIG_LG_KERNEL_EXPAND)
+
+unsigned long key_mem_start __initdata = 0;
+unsigned long key_mem_size __initdata = 0;
+
+static int __init key_mem(char *p)
+{
+	unsigned long start = 0;
+	unsigned long size = 0;
+	char *endp;
+
+	start = memparse(p, &endp);
+	if (*endp == ',') {
+		size = memparse(endp + 1, NULL);
+
+		key_mem_start = start;
+		key_mem_size = size;
+	}
+
+	return 0;
+}
+
+early_param("keymem", key_mem);
+
+
+#endif
 static int __init parse_tag_initrd(const struct tag *tag)
 {
 	printk(KERN_WARNING "ATAG_INITRD is deprecated; "
@@ -152,6 +178,27 @@ static void __init find_limits(unsigned long *min, unsigned long *max_low,
 	*max_high = bank_pfn_end(&mi->bank[mi->nr_banks - 1]);
 }
 
+#if defined(CONFIG_LG_KERNEL_EXPAND)
+
+static void  __init bootmem_reserve_key(int node, unsigned long start, unsigned long size)
+{
+	pg_data_t *pgdat = NODE_DATA(node);
+	int res;
+
+	res = reserve_bootmem_node(pgdat, start,
+			     size, BOOTMEM_EXCLUSIVE);
+
+	if (res == 0) {
+		printk(KERN_INFO "key memory region : 0x%08lx - 0x%08lx size 0x%08lx. Added to reserved bootmem for customer public key \n",
+				start, start + size, size);
+	} else {
+		printk(KERN_ERR
+			"key memory : 0x%08lx+0x%08lx overlaps in-use "
+			"memory region - disabling initrd\n",
+			start, size);
+	}
+}
+#endif
 static void __init arm_bootmem_init(unsigned long start_pfn,
 	unsigned long end_pfn)
 {
@@ -188,6 +235,11 @@ static void __init arm_bootmem_init(unsigned long start_pfn,
 
 		free_bootmem(__pfn_to_phys(start), (end - start) << PAGE_SHIFT);
 	}
+	
+#if defined(CONFIG_LG_KERNEL_EXPAND)
+	if ( key_mem_start != 0 )
+		bootmem_reserve_key(0, key_mem_start, key_mem_size);
+#endif
 
 	/* Reserve the lowmem memblock reserved regions in bootmem. */
 	for_each_memblock(reserved, reg) {
