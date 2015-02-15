@@ -1,7 +1,0 @@
-reset
-SYS.CPU ARM1176JZ
-SYS.JC 1.0MHz
-SYS.M attach
-
-
-

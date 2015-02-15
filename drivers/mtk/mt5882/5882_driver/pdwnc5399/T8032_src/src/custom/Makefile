@@ -1,1 +1,0 @@
-SUBDIRS = mt5399m1v1 

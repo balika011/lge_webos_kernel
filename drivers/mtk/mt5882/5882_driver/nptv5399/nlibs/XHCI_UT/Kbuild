@@ -1,3 +1,0 @@
-obj-$(CONFIG_USB_MTK53xx_HCD) += xhci-hcd.o
-
-xhci-hcd-objs := xhci.o xhci-mem.o xhci-platform.o xhci-ring.o xhci-hub.o xhci-dbg.o mtk-protocol.o mtk-test.o mtk-test-lib.o mtk-usb-hcd.o xhci-mtk-scheduler.o xhci-mtk-power.o mtk-phy.o mtk-phy-5399.o mtk-phy-ahb.o
