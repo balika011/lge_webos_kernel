@@ -1007,6 +1007,7 @@ INT32 i4VDOOmxCompSetState(VDO_OMX_HANDLE_T *pHandle, OMX_STATETYPE omxStateTo)
     }
     else
     {
+        LOG(0,"i4VDOOmxCompSetState state (%d->%d) error\n",omxStateFrom,omxStateTo);
         rEvent.eEvent     = OMX_EventError;
         rEvent.nData1     = omxRet;
         rEvent.nData2     = 0;
@@ -1093,6 +1094,7 @@ INT32 i4VDOOmxCompSetStateAsync(PARAMETER_OMX_COMMAND_STATESET *prUArg)
     if (_prVDOOmxHandle[Omx_Handle->h_handle].fgUsed && (OMX_Set_State.pHandle == &_prVDOOmxHandle[Omx_Handle->h_handle]))
     {
         // status is valid, proceed to send command to queue
+        LOG(2,"i4VDOOmxCompSetStateAsync -> %d\n", OMX_Set_State.eStateType);
         rMsgSetState.eCmd     = VDO_OMX_CMD_SET_STATE;
         rMsgSetState.eStateTo = OMX_Set_State.eStateType;
         rMsgSetState.pHandle = OMX_Set_State.pHandle;

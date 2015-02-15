@@ -44,7 +44,7 @@
 * \par Last changed
 *   $Author: p4admin $
 *   $Modtime: $
-*   $Revision: #1 $
+*   $Revision: #2 $
 */
 
 #if defined(LINUX_TURNKEY_SOLUTION) && defined(CC_ENABLE_VOMX)
@@ -1955,29 +1955,23 @@ static INT32 i4VConv_SubGetNextFbState(VCONV_INST_T* prInst)
             }
             return (VCONV_NOT_OK);
         }
-#ifdef ANDROID
-        // when the resolution change is still smaller than original buffer size,
-        // ignore this change notify.
-        //if((prSeqHdrSrc->u2HSize != prInst->u4FrameWidth) ||
-        //   (prSeqHdrSrc->u2VSize != prInst->u4FrameHeight))
-        if((prInst->u4FrameWidth * prInst->u4FrameHeight) >
-           (prSeqHdrSrc->u2LineSize * prSeqHdrSrc->u2VSize))
-#else
+
         if((prSeqHdrSrc->u2HSize != prInst->u4FrameWidth) ||
            (prSeqHdrSrc->u2VSize != prInst->u4FrameHeight))
-
-#endif
         {
             prInst->u4FrameWidth = prSeqHdrSrc->u2HSize;
             prInst->u4FrameHeight = prSeqHdrSrc->u2VSize;
-            if(prInst->pvCbFunc)
-            {
-                // some caller will call executing later, but some are not.
-                //vVConv_ChangeMainState(prInst, VCONV_MAIN_PAUSE);
-                prInst->pvCbFunc(prInst->pvCbPrivData, prInst->u4InstId,
-                    VCONV_NOTIFY_CHANGE_BUF, NULL);
-                x_thread_delay(5);
-            }
+            // LG A5LR can't send buffer change event, or else GST will disable and re-allocate output port.
+            /*
+                      if(prInst->pvCbFunc)
+                      {
+                         // some caller will call executing later, but some are not.
+                         //vVConv_ChangeMainState(prInst, VCONV_MAIN_PAUSE);
+                        prInst->pvCbFunc(prInst->pvCbPrivData, prInst->u4InstId,
+                            VCONV_NOTIFY_CHANGE_BUF, NULL);
+                        x_thread_delay(5);
+                     }
+                     */
         }
     }
     else
