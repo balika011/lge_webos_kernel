@@ -1,0 +1,404 @@
+//***************************************************************************
+//!file     si_drv_switch.h
+//!brief    SiI9687 Port Switch driver functions.
+//
+// No part of this work may be reproduced, modified, distributed,
+// transmitted, transcribed, or translated into any language or computer
+// format, in any form or by any means without written permission of
+// Silicon Image, Inc., 1060 East Arques Avenue, Sunnyvale, California 94085
+//
+// Copyright 2008-2010, Silicon Image, Inc.  All rights reserved.
+//***************************************************************************/
+
+#ifndef __SI_DRVSWITCH_H__
+#define __SI_DRVSWITCH_H__
+
+#include "../../application/si_datatypes.h"
+#include "../../platform/hal/include/si_c99support.h"
+
+//------------------------------------------------------------------------------
+//  Manifest Constants
+//------------------------------------------------------------------------------
+
+#define SW_ERR  (MSG_ERR | DBGF_TS | DBGF_CN), DBG_SWCH
+#define SW_DBG  (MSG_DBG | DBGF_TS | DBGF_CN), DBG_SWCH
+
+//-------------------------------------------------------------------------------
+// Video related enums and manifest constants
+//-------------------------------------------------------------------------------
+
+enum
+{
+    SiiPORT_0   = 0,
+    SiiPORT_1   = 1,
+    SiiPORT_2   = 2,
+    SiiPORT_3   = 3,
+    SiiPORT_VGA = 5,
+
+    SiiPORT_ALL = 0xFF
+};
+
+enum   // HW extracted color depth value to the register
+{
+    SiiCOLORDEPTH_8  = 4,
+    SiiCOLORDEPTH_10 = 5,
+    SiiCOLORDEPTH_12 = 6,
+    SiiCOLORDEPTH_16 = 7
+};
+
+typedef struct _SiiInputFormat_t
+{
+    int_t       vic;
+    int_t       vRes;
+    int_t       hRes;
+    int_t       vRate;
+    int_t       pRepl;
+    int_t       colorDepth;
+    bool_t      isInterlace;
+    int_t       tmdsClock;
+    bool_t      isHdmi;
+    bool_t      isMhl;
+
+} SiiVideoFormat_t;
+
+
+enum
+{
+    SiiPACKET_HEADER_VSIF          = 0x81,
+    SiiPACKET_HEADER_AVI           = 0x82,
+    SiiPACKET_HEADER_SPDI          = 0x83,
+    SiiPACKET_HEADER_AUD           = 0x84,
+    SiiPACKET_HEADER_MPEG          = 0x85,
+    SiiPACKET_HEADER_MHL3D_VSIF    = 0x86,
+};
+
+
+typedef enum  //Packet for main or roving port
+{
+    SiiPACKET_MAIN = 0,   //AVI Main port
+    SiiPACKET_ROVING,     //AVI Roving port
+}SiiPacketChannel_t;
+
+
+typedef enum  _SiiPacketType_t  //Packets extracted, with headers defined specifically in related registers
+{
+    SiiPACKET_TYPE_AIF = 0,     //header 0x82
+    SiiPACKET_TYPE_AVI,         //header defined in 0x273
+    SiiPACKET_TYPE_VSIF         //header defined in 0x272
+}SiiPacketType_t;
+
+enum   //HDMI_Video_Format
+{
+    PACKET_FORMAT_NONE      = 0x00,
+    PACKET_FORMAT_EXT_RES   = 0x01,
+    PACKET_FORMAT_3D        = 0x02
+};
+
+enum  //3D_Structure
+{
+    PACKET_3D_FRAME_PACK    = 0x00,
+    PACKET_3D_FIELD_ALT     = 0x01,
+    PACKET_3D_LINE_ALT      = 0x02,
+    PACKET_3D_SIDE_FULL     = 0x03,
+    PACKET_3D_L_DEPTH       = 0x04,
+    PACKET_3D_L_DEPTH_GFX   = 0x05,
+    PACKET_3D_SIDE_HALF     = 0x08
+
+};
+
+enum   //3D_Ext_Data
+{
+    PACKET_3D_HORIZONTAL    = 0x00,
+    PACKET_3D_QUINCUNX      = 0x04
+};
+
+enum
+{
+    PACKET_3D_OL_OR     = 0x00,
+    PACKET_3D_OL_ER     = 0x01,
+    PACKET_3D_EL_OR     = 0x10,
+    PACKET_3D_EL_ER     = 0x11
+};
+
+#define PACKET_MAX_LENGTH           28 //27 + 1 checksum byte
+#define PIPE_COUNT                  2   // MP & RP
+#define PACKET_TYPE_COUNT           3   // AVI, AIF, VSI
+
+//-------------------------------------------------------------------------------
+// InfoFrame PACKET data structures
+//-------------------------------------------------------------------------------
+
+typedef struct
+{
+    bool_t      packetNew;          // Last status indicated a new packet change
+    bool_t      packetMissing;      // Last status indicated packets are missing
+    uint8_t     packetType;
+    uint8_t     packetVersion;
+    uint8_t     packetLength;
+    uint8_t     packetContent[ PACKET_MAX_LENGTH ];
+} SiiPacketData_t;
+
+//-------------------------------------------------------------------------------
+//  Driver Function Prototypes
+//-------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvSwitchInitialize
+// Description:
+// Parameters:  none
+// Returns:     It returns true if the initialization is successful, or false
+//              if some failure occurred.
+//------------------------------------------------------------------------------
+
+bool_t SiiDrvSwitchInitialize( uint_t arcPortIndex );
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvSwitchStatus
+// Description: Returns a status flag word containing Switch driver-specific
+//              information about the state of the device.
+// Parameters:  none
+// Returns:     Sixteen-bit status flags word for the Switch Driver
+//------------------------------------------------------------------------------
+
+typedef enum _SwitchStatusFlags_t
+{
+    SiiSWITCH_PEEK_STATUS           = 0x0000,       // Returns all flags without clearing any
+    SiiSWITCH_INT                   = 0x0001,       // At least one of SiiSWITCH_INTFLAGS is set
+    SiiSWITCH_FIRST_PASS            = 0x0002,
+    SiiSWITCH_PORT_CHANGE           = 0x0004,       // One or more port status changed
+    SiiSWITCH_CABLE_CHANGE          = 0x0008,       // Main port cable plug in/out state changed
+    SiiSWITCH_HPE_COMPLETE          = 0x0010,
+    SiiSWITCH_MP_HPE_TRIGGER        = 0x0020,
+    SiiSWITCH_RP_HPE_TRIGGER        = 0x0040,
+    SiiSWITCH_MP_MUTED              = 0x0080,
+
+    SiiSWITCH_MP_INFOFRAME_INTR_VALID   = 0x0100,   // A new (updated) Infoframe has been detected OR
+                                                    // an infoframe has NOT been sent for 4 periods.
+    SiiSWITCH_INTFLAGS                  = SiiSWITCH_PORT_CHANGE | SiiSWITCH_CABLE_CHANGE |
+                                          SiiSWITCH_HPE_COMPLETE | SiiSWITCH_MP_HPE_TRIGGER |
+                                          SiiSWITCH_RP_HPE_TRIGGER,
+
+    // Currently used by Repeater only, not included by above
+    SiiSWITCH_SCDT_CHANGE               = 0x0200,   // SCDT changed state, see SiiSWITCH_SCDT_ACTIVE
+    SiiSWITCH_SCDT_ACTIVE               = 0x0400,   // State of SiiSWITCH_SCDT_ACTIVE after SiiSWITCH_SCDT_CHANGE
+
+} SwitchStatusFlags_t;
+
+SwitchStatusFlags_t SiiDrvSwitchStatus( SwitchStatusFlags_t mask );
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvSwitchIfInterruptStatusGet
+// Description: Returns the last Infoframe interrupt Status data retrieved by
+//              the Switch ISR.
+// Parameters:  pData - pointer to return data buffer (1 byte).
+// Returns:     true if new interrupt status data is available, false if not.
+//              pData - Destination for interrupt status data.
+//------------------------------------------------------------------------------
+
+typedef enum _ifInterruptStatusFlags
+{
+    SiiSwitch_NO_AIF    = 0x01,
+    SiiSwitch_NO_AVI    = 0x02,
+    SiiSwitch_NO_VSI    = 0x04,
+    SiiSwitch_NEW_AIF   = 0x08,
+    SiiSwitch_NEW_AVI   = 0x10,
+    SiiSwitch_NEW_VSI   = 0x20
+} SiiInfoframeInterruptStatusFlags_t;
+
+bool_t  SiiDrvSwitchIfInterruptStatusGet ( uint8_t *pData );
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvSwitchStateGet
+// Description: Get the selected state type information.
+// Parameters:  stateType   - Type of state returned.
+// Returns:     Returns an eight bit state value of the selected type.
+//------------------------------------------------------------------------------
+
+typedef enum _SiiDrvSwitchStateTypes_t
+{
+    SiiSwitch_FIRST_PASS,
+    SiiSwitch_SELECTED_INPUT_CONNECT_STATE,
+    SiiSwitch_INPUT_PORTS_CONNECT_STATE
+} SiiDrvSwitchStateTypes_t;
+
+uint8_t SiiDrvSwitchStateGet( SiiDrvSwitchStateTypes_t stateType );
+
+bool_t SiiDrvSwitchInfoFrameGet(int_t port, SiiPacketType_t ifType, uint8_t *pInfoFrame, int_t *pLen);
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvSwitchPortInfoGet
+// Description: Returns the resolution info for the requested port, if the port
+//              is connected to an active source.
+//
+// NOTE:        The last updated full AVI, AIF, and VSI frames are also
+//              available for each port using a different API.
+//------------------------------------------------------------------------------
+
+bool_t SiiDrvSwitchPortInfoGet ( uint8_t port, bool_t isMainPipe, SiiVideoFormat_t *pVideoFormat);
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvSwitchSourceSelect
+// Description: Connect the passed input port to the main pipe.
+//------------------------------------------------------------------------------
+
+void    SiiDrvSwitchSourceSelect ( uint_t portIndex );
+
+uint_t  SiiDrvSwitchSourceGet ( void );
+
+void    SiiDrvSwitchSubPortSelect( uint_t subPortIndex );
+
+void    SiiDrvSwitchRovingEnable( bool_t isEnabled );
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvHpdSetState
+// Description: Set the correct HPD state as determined by the request and
+//              the current operating mode of the port.
+// Parameter:   port:       HDMI Port to control
+//              newState:   Requested new state for HPD
+//
+//              If Port is in CDC, MHL, or HDMI1.4 modes:
+//
+//                  SiiHPD_ACTIVE       - Send HPD HI command
+//                  SiiHPD_INACTIVE     - Send HPD LOW command
+//                  SiiHPD_ACTIVE_EX    - Send HPD HI command
+//                  SiiHPD_INACTIVE_EX  - Send HPD LOW command
+//                  SiiHPD_TOGGLE       - MHL - Toggle HPD pin HI then LOW
+//                                        All other modes, nothing
+//
+//                  HDCP, EDID, RX Term enabled for all values of newState.
+//                  MHL mode RX term enabled is MHL termination.
+//
+//              If Port is in HDMI1.3a mode:
+//
+//                  SiiHPD_ACTIVE       - HPD HI, HDCP, EDID, RX Term enabled
+//                  SiiHPD_INACTIVE     - HPD LOW, HDCP, RX Term disabled
+//                  SiiHPD_ACTIVE_EX    - EDID, RX Term enabled
+//                  SiiHPD_INACTIVE_EX  - HPD LOW, HDCP, EDID, RX Term disabled
+//                  SiiHPD_TOGGLE       - Nothing
+//
+//                  RX term enabled is HDMI termination.
+//
+// Returns:     TRUE if change to new state was successful.
+//              FALSE otherwise.
+//------------------------------------------------------------------------------
+
+// Note that these enums match the values of the corresponding CdcHpdState_t enums
+typedef enum _SiiDrvHpdActions_t
+{
+    SiiHPD_INACTIVE_EX,     // HPD HI, HDCP, EDID, RX Term disabled
+    SiiHPD_ACTIVE,          // HPD HI, HDCP, EDID, RX Term enabled
+    SiiHPD_TOGGLE,          // All Toggle Off then On
+    SiiHPD_INACTIVE_EDID,   // EDID disabled
+    SiiHPD_ACTIVE_EX,       // EDID, RX Term enabled
+    SiiHPD_TOGGLE_EDID,     // EDID Toggle Off then On
+    SiiHPD_UNUSED,          // Unused to help match CDC values
+    SiiHPD_INACTIVE,        // HPD LOW, HDCP, RX Term disabled
+} SiiDrvHpdActions_t;
+
+bool_t SiiDrvHpdSetState ( uint8_t portIndex, SiiDrvHpdActions_t newState );
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvSwitchPipeHpeTrigger
+// Description: Trigger an automatic hot plug event sequence on selected pipe
+// Parameter:   pipe:           0 - HPE on port attached to main pipe
+//                              1 - HPE on port attached to roving pipe
+//              includeEdid:    false - DO NOT disable EDID DDC during HPE
+//                              true  - Disable EDID DDC during HPE
+//------------------------------------------------------------------------------
+
+void SiiDrvSwitchPipeHpeTrigger( uint8_t pipe, bool_t includeEdid );
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvSwitchDeviceRXTermControl
+// Description: Enable or disable RX termination for the selected port(s)
+// Parameters:  portIndex   - 0-4:  Switch port to control
+//                          - 0xFF: Apply to all ports.
+//              enableVal   - The bit pattern to be used to enable or disable
+//                            termination
+//                          0x00 - Enable for HDMI mode
+//                          0x55 - Enable for MHL mode
+//                          0xFF - Disable
+//
+// Note:        The 'enableVal' parameter for this function is NOT boolean as
+//              it is for the companion si_DeviceXXXcontrol functions.
+// Note:        The 'portIndex' parameter value 0xFF should not be used unless
+//              all ports are HDMI1.3/a (not MHL or CDC)
+//------------------------------------------------------------------------------
+void SiiDrvSwitchDeviceRXTermControl ( uint8_t portIndex, uint8_t enableVal );
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvSwitchDeviceHpdControl
+// Description: Enable or disable HPD for the selected port(s)
+// Parameters:  portIndex   - 0-4:  Switch port to control
+//                          - 0xFF: Apply to all ports.
+//              enableHPD   - true to enable, false to disable
+//              mode        - true to tristate the HPD.
+//                          - false to clear hpd.
+//
+// Note:        The 'portIndex' parameter value 0xFF should not be used unless
+//              all ports are HDMI1.3/a (not MHL or CDC)
+//------------------------------------------------------------------------------
+
+void SiiDrvSwitchDeviceHpdControl ( uint8_t portIndex, bool_t enableHPD, uint8_t mode);
+
+enum
+{
+    SI_TERM_HDMI                = 0x00,     // Enable for HDMI mode
+    SI_TERM_MHL                 = 0x55,     // Enable for MHL mode
+    SI_TERM_UNTERMINATED        = 0xFF,     // Disable
+};
+
+
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvSwitchAutoHpeCbusEnable
+// Description: Add or remove the designated CBUS port to/from the Auto-HPD
+//              Software Interrupt mask. The type of port decides how we handle
+//              Hot Plug Events (HPE) on that port.  If it is regular HDMI,
+//              we do standard a Hot Plug. When the preauthentication logic
+//              determines that the CBUS port needs an HPE, it fires off a
+//              SW HPE interrupt and lets the software send the appropriate
+//              HPE message over CBUS.
+// Parameters:  true == enable
+// Returns:     n/a
+//------------------------------------------------------------------------------
+
+void SiiDrvSwitchAutoHpeCbusEnable( bool_t enable );
+
+
+//------------------------------------------------------------------------------
+// Function:    SiiDrvSwitchProcessInterrupts
+// Description:
+//
+// NOTE:        If called in a polling manner, this function should be called
+//              relatively often to avoid delay in muting and unmuting when
+//              using external mute.
+//------------------------------------------------------------------------------
+
+void    SiiDrvSwitchProcessInterrupts ( void );
+
+//-------------------------------------------------------------------------------------------------
+//! @brief      Return index of MHL capable Rx port.
+//!
+//!             This information come out of NVRAM Boot data.
+//!
+//! @return     0 based port index, 0xFF - if MHL port not found.
+//-------------------------------------------------------------------------------------------------
+
+int_t   SiiDrvSwitchMhlPortGet(void);
+
+//------------------------------------------------------------------------------
+// Function:    SiiMhlCbHpdSetState
+// Description: This callback is used when the Receiver finishes with all its
+//              initialization and ready for Transmitter to read
+//              EDID/KSV FIFO/BCAPS ...
+// Returns:     true: success
+//              false: either port is not MHL or CBUS is not ready.
+//------------------------------------------------------------------------------
+bool_t SiiMhlCbHpdSetState ( int_t portIndex, SiiDrvHpdActions_t newState );
+
+
+#endif  // __SI_DRVSWITCH_H__
+
+
+

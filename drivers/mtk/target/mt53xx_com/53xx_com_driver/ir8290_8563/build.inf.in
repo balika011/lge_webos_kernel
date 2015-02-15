@@ -1,0 +1,7 @@
+[build_linux_ko]
+
+SOURCES = \   
+ 
+INCLUDES += \
+    ./bd/ \
+    

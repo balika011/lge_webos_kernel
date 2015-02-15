@@ -1,0 +1,1135 @@
+/*----------------------------------------------------------------------------*
+ * No Warranty                                                                *
+ * Except as may be otherwise agreed to in writing, no warranties of any      *
+ * kind, whether express or implied, are given by MTK with respect to any MTK *
+ * Deliverables or any use thereof, and MTK Deliverables are provided on an   *
+ * "AS IS" basis.  MTK hereby expressly disclaims all such warranties,        *
+ * including any implied warranties of merchantability, non-infringement and  *
+ * fitness for a particular purpose and any warranties arising out of course  *
+ * of performance, course of dealing or usage of trade.  Parties further      *
+ * acknowledge that Company may, either presently and/or in the future,       *
+ * instruct MTK to assist it in the development and the implementation, in    *
+ * accordance with Company's designs, of certain softwares relating to        *
+ * Company's product(s) (the "Services").  Except as may be otherwise agreed  *
+ * to in writing, no warranties of any kind, whether express or implied, are  *
+ * given by MTK with respect to the Services provided, and the Services are   *
+ * provided on an "AS IS" basis.  Company further acknowledges that the       *
+ * Services may contain errors, that testing is important and Company is      *
+ * solely responsible for fully testing the Services and/or derivatives       *
+ * thereof before they are used, sublicensed or distributed.  Should there be *
+ * any third party action brought against MTK, arising out of or relating to  *
+ * the Services, Company agree to fully indemnify and hold MTK harmless.      *
+ * If the parties mutually agree to enter into or continue a business         *
+ * relationship or other arrangement, the terms and conditions set forth      *
+ * hereunder shall remain effective and, unless explicitly stated otherwise,  *
+ * shall prevail in the event of a conflict in the terms in any agreements    *
+ * entered into between the parties.                                          *
+ *---------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------
+ * Copyright (c) 2008, MediaTek, Inc.
+ * All rights reserved.
+ *
+ * Unauthorized use, practice, perform, copy, distribution, reproduction,
+ * or disclosure of this information in whole or in part is prohibited.
+ *-----------------------------------------------------------------------------
+ *
+ * $Author: p4admin $
+ * $Date: 2015/02/15 $
+ * $RCSfile: pi_tuner_TDA182I4.c,v $
+ * $Revision: #1 $
+ *
+ *---------------------------------------------------------------------------*/
+
+/** @file pi_tuner_TDA182I4.c
+ *  Tuner control for NXP TDA182I4
+ */
+
+//-----------------------------------------------------------------------------
+// Include files
+//-----------------------------------------------------------------------------
+//#include "demod_tuner_interface.h"
+//#include "pd_i2capi.h"
+
+
+//*--------------------------------------------------------------------------------------
+//* Include NXP Driver files
+//*--------------------------------------------------------------------------------------
+#include "tmNxTypes.h"
+#include "tmCompId.h"
+#include "tmFrontEnd.h"
+#include "tmbslFrontEndTypes.h"
+#include "tmbslTDA182I4.h"
+
+#include "tuner_interface_if.h"
+#include "fe_tuner_common_if.h"
+#include "i2c_api.h"
+#include "x_typedef.h"
+#include "tunerDebug.h"
+#include "x_os.h"
+#include "tuner_if.h"
+#include "pd_def_atd.h"
+
+#include "eq_script_tda182I4.h"
+//#include "pi_def_dvbt.h"
+//-----------------------------------------------------------------------------
+// Constant definitions
+//-----------------------------------------------------------------------------
+//#define C_TDA18274_I2C_DIVIDER       ((UINT16) 0x100)
+#define I2C_MAX_WRITE 15
+#define AD_R_setting 1      // 1:have IF attenuator, 0:No IF attenuator
+//Frequency boundary .Get from tuner spec
+#define C_TDA182I4_FREQ_DBOUND_UPPER   870*1000*1000     
+#define C_TDA182I4_FREQ_DBOUND_LOWER    42*1000*1000 
+#define C_TDA182I4_FREQ_DBOUND_UPPER_Ana     870*1000*1000
+#define C_TDA182I4_FREQ_DBOUND_LOWER_Ana    42*1000*1000
+
+//PLL lock check parameters
+#define C_NXP_TDA182I4_PLL_POLL_INTERVAL      10 //ms
+#define C_NXP_TDA182I4_PLL_POLL_TIMETOUT      100 //ms
+#define C_NXP_TDA182I4_PLL_POLL_CNT           C_NXP_TDA182I4_PLL_POLL_TIMETOUT/C_NXP_TDA182I4_PLL_POLL_INTERVAL //counter
+#define C_TDA182I4_I2C_CLK_DIV         0x100
+#define C_TDA182I4_PLL_LOCK_BIT        6
+
+#define NXP_TDA182I4_ADDRESS           ((UINT8)  0xC0)
+//#define C_TDA182I4_IF_FREQUENCY          ((UINT16)  3250)  /* kHz */
+//#define C_TDA182I4_IF_FREQUENCY_ANA      ((UINT16)  38900)  /* kHz */
+//#define C_TDA182I4_IF_FREQUENCY_L1       ((UINT16)  33900)  /* kHz */
+#define C_TDA182I4_LO_DIVIDER_STEP       ((UINT32) 1000)  /* Hz */
+#define C_TDA182I4_LO_DIVIDER_STEP_ANA   ((UINT16)  1000)  /* Hz */
+#define C_NXP_TDA182I4_STR                        "NXP_TDA182I4 ES2 2010-01-01\n 2013-04-22\n v2.1"
+
+#define C_TDA182I4_IF_FREQUENCY_PAL_B    ((UINT16)  6400)  /* kHz */
+#define C_TDA182I4_IF_FREQUENCY_PAL_G    ((UINT16)  6750)  /* kHz */
+#define C_TDA182I4_IF_FREQUENCY_PAL_DK   ((UINT16)  6850)  /* kHz */
+#define C_TDA182I4_IF_FREQUENCY_PAL_I    ((UINT16)  7250)  /* kHz */
+#define C_TDA182I4_IF_FREQUENCY_NTSC_M   ((UINT16)  5400)  /* kHz */
+#define C_TDA182I4_IF_FREQUENCY_SECAM_L  ((UINT16)  6750)  /* kHz */
+#define C_TDA182I4_IF_FREQUENCY_SECAM_L1 ((UINT16)  1250)  /* kHz */
+#define C_TDA182I4_IF_FREQUENCY_DVBT_6M        ((UINT16)  3250)  /* kHz */  //JUST for 3.25M
+#define C_TDA182I4_IF_FREQUENCY_DVBT_7M        ((UINT16)  3600)  /* kHz */  //JUST for 3.5M
+#define C_TDA182I4_IF_FREQUENCY_DVBT_8M        ((UINT16)  4000)  /* kHz */  //JUST for 4M
+#define C_TDA182I4_IF_FREQUENCY_ATSC        ((UINT16)  4250)  /* kHz */  //JUST for 3.25M
+#define C_TDA182I4_IF_FREQUENCY_DVBC        ((UINT16)  5000)  /* kHz */  //JUST for 5M
+#define C_TDA182I4_IF_FREQUENCY_ATSC_64QAM  ((UINT16)  4000) /*kHz*/  
+#define C_TDA182I4_IF_FREQUENCY_ISDBT    	((UINT16)  3250) /*kHz*/  
+#define C_TDA182I4_IF_FREQUENCY_DTMB 		((UINT16)  4000) /*kHz*/  
+
+#define C_TDA182I4_SAW_BW              SAW_BW_8M
+#define C_TDA182I4_TOP_SET_ANA         ((UINT8)   0x0A)
+
+//for display signal level
+#define C_U8_TDA182I4_AGC_IF_LVL_MAX     0xc2  //no signal
+#define C_U8_TDA182I4_AGC_IF_LVL_MIN     0xa8  //-70dbm input
+
+#define C_TDA182I4_CHANNEL_SCAN_JUMP_SMALL_STEP ((UINT16) 250)
+#define C_TDA182I4_CHANNEL_SCAN_JUMP_MIDDLE_STEP_UP ((UINT16) 1500)
+#define C_TDA182I4_CHANNEL_SCAN_JUMP_MIDDLE_STEP_DOWN ((UINT16) 500)
+
+//MT5135 PRA 
+#define C_TDA182I4_AGC_IF_SLP             0.125 
+#define C_TDA182I4_AGC_IF_INT             -0.5
+#define C_TDA182I4_AGC_IF_MAX             0
+#define C_TDA182I4_AGC_IF_MIN            -1
+
+
+#define C_U8_TDA182I4_AGC_IF_SLP          (INT8)(C_TDA182I4_AGC_IF_SLP *64 )
+#define C_U8_TDA182I4_AGC_IF_INT          (INT8)(C_TDA182I4_AGC_IF_INT *16 )
+#define C_U8_TDA182I4_AGC_IF_MAX          (INT8)(C_TDA182I4_AGC_IF_MAX *128)
+#define C_U8_TDA182I4_AGC_IF_MIN          (INT8)(C_TDA182I4_AGC_IF_MIN *128)
+
+
+
+
+static UINT8* pTDA182I4EqNormal[MOD_ANA_TYPE_END - MOD_ANA_TYPE_BEGIN] = {NULL};
+static UINT8* pTDA182I4EqWeak[MOD_ANA_TYPE_END - MOD_ANA_TYPE_BEGIN]= {NULL};
+
+
+
+/*************************************************
+ DVB-T tuning parameter struct
+**************************************************/
+ enum
+	{
+		SAW_BW_6M = 0,
+		SAW_BW_7M,
+		SAW_BW_8M,
+		SAW_BW_5M
+	};
+
+enum
+{
+	DVBT_QPSK =0,
+	DVBT_Q16,
+	DVBT_Q64,
+	DVBT_Qam_Mode_Size 
+};
+
+#define DVBT_Qam_Mode_Unknow	DVBT_Qam_Mode_Size
+enum
+{
+	DVBT_CR_12 = 0,
+	DVBT_CR_23,
+	DVBT_CR_34,
+	DVBT_CR_56,
+	DVBT_CR_78,
+	DVBT_CR_Mode_Size
+};
+
+
+#define PRA_TARGET_H_INDEX 0
+#define PRA_TARGET_L_INDEX 1
+#define SLD_DAGC_00_INDEX 2
+#define PRA_LOOP_CONF_INDEX  3
+#define DAGC_TARGET_LEVEL_H_INDEX 4   /*wenming 120104: DAGC target level is by modulation when 89&96*/
+#define DAGC_TARGET_LEVEL_L_INDEX 5
+
+#if !(defined(CC_MT5365) || defined(CC_MT5395))
+/*wenming 11-10-21:don't change top 6 items' order!!*/
+static ATD_TUNER_REL_REG_T arrAtdRelReg[]={
+ 
+ {0x7b7,0x10}, //PRA target H
+ {0x7b9,0x10}, //PRA target L
+ {0x790,0x08}, //DAGC setting
+ {0x7ca,0x88}, //PRA speed
+ {0x794,0x30}, //DAGC Target level H
+ {0x7a4,0x30}, //DAGC Target level L
+ {0x1b4,0x17},
+ {0x7d4,0x04},//RF_BIAS  /*wenming 11-12-07: new PRA parameter*/
+ {0x7d5,0xf8},//IF_BIAS1
+ {0x7d6,0xf8},//IF_BIAS2
+ {0x7d7,0xec},//RF_SLOPE
+ {0x7d8,0xf8},//IF_SLOPE1
+ {0x7d9,0xf8},//IF_SLOPE2
+ {0x7da,0x7f},//RF Max
+ {0x7db,0x00},//IF Max
+ {0x7dc,0x80},//RF Min
+ {0x7dd,0x80},//IF Min 1
+ {0x7de,0x80},//IF Min 2
+ {0x00,0x00}//end flag
+ };
+#else
+ /*wenming 11-10-21:don't change top 4 items' order!!*/
+ static ATD_TUNER_REL_REG_T arrAtdRelReg[]={
+
+ {0x2b7,0x10}, //PRA target H
+ {0x2b9,0x10}, //PRA target L
+ {0x290,0x08}, //DAGC setting
+ {0x2ca,0x88}, //PRA speed
+ {0x294,0x38}, //DAGC Target H
+ {0x2a4,0x28}, //DAGC Target L
+ {0x2d4,0x04},//RF_BIAS    /*wenming 11-12-07: new PRA parameter*/
+ {0x2d5,0xf8},//IF_BIAS1
+ {0x2d6,0xf8},//IF_BIAS2
+ {0x2d7,0xec},//RF_SLOPE
+ {0x2d8,0xf8},//IF_SLOPE1
+ {0x2d9,0xf8},//IF_SLOPE2
+ {0x2da,0x7f},//RF Max
+ {0x2db,0x00},//IF Max
+ {0x2dc,0x80},//RF Min
+ {0x2dd,0x80},//IF Min 1
+ {0x2de,0x80},//IF Min 2
+ {0x13b,0x80},
+ {0x00,0x00}//end flag
+};
+#endif
+
+
+tmErrorCode_t UserWrittenI2CRead(tmUnitSelect_t tUnit,	UInt32 AddrSize, UInt8* pAddr,
+UInt32 ReadLen, UInt8* pData);
+tmErrorCode_t UserWrittenI2CWrite (tmUnitSelect_t tUnit, 	UInt32 AddrSize, UInt8* pAddr,
+UInt32 WriteLen, UInt8* pData);
+tmErrorCode_t UserWrittenWait(tmUnitSelect_t tUnit, UInt32 tms);
+tmErrorCode_t UserWrittenPrint(UInt32 level, const char* format, ...);
+
+static UINT8 fgTunerInit=FALSE;
+
+
+
+
+/** TDA182I4_TunerInit
+ *  Tuner initialzation forTDA182I4.
+ *  @param  pTCtx       Pointer of pi tuner driver context.
+ *  @retval void
+ */
+
+//-----------------------------------------------------------------------------
+VOID TDA182I4_TunerInit(
+    ITUNER_CTX_T *pTCtx
+    )
+{   
+     
+    ITUNER_CTX_T *psTunerCtx = pTCtx;
+    SPECIFIC_MEMBER_US_CTX * pUSCtx= &(pTCtx->specific_member.us_ctx);
+	SPECIFIC_MEMBER_EU_CTX * pEUCtx= &(pTCtx->specific_member.eu_ctx);
+  	//tmErrorCode_t err = TM_OK;	 
+    psTunerCtx->I2cAddress = NXP_TDA182I4_ADDRESS;
+    psTunerCtx->u2IF_Freq = C_TDA182I4_IF_FREQUENCY_ATSC;
+	//psTunerCtx->u2IF_Freq_A = C_TDA182I4_IF_FREQUENCY_ANA;//analog if frequency for ATD
+	psTunerCtx->u4RF_Freq = 0;
+	psTunerCtx->u2LO_Step = 100; //*10 = 1KHz
+
+	 // AGC para
+    psTunerCtx->sAtdAgcPara.AgcRfBias = 0x2f; 
+    psTunerCtx->sAtdAgcPara.AgcRfMin  = 0x80;
+    psTunerCtx->sAtdAgcPara.AgcIfMin  = 0xe3; 
+    psTunerCtx->sAtdAgcPara.AgcDrSel  = 0x0B; 
+
+	 //ATD patch selection
+    psTunerCtx->u1AtdPatchSwitch =0x09;
+    psTunerCtx->fgRFAGC = FALSE;//indicate if tuner need extern RF_AGC
+	psTunerCtx->fgRFTuner =FALSE;//Digital tuner
+	//psTunerCtx->u1EqIndex=0;//EQ index select
+
+	pEUCtx->m_SAW_BW  = C_TDA182I4_SAW_BW;
+    pEUCtx->m_Ana_Top = C_TDA182I4_TOP_SET_ANA;
+
+	//for display signal level
+	pEUCtx->m_ifAgc_lvl_max = (UINT8)C_U8_TDA182I4_AGC_IF_LVL_MAX;
+	pEUCtx->m_ifAgc_lvl_min = (UINT8)C_U8_TDA182I4_AGC_IF_LVL_MIN;
+
+	//Tuner frequency range
+    pEUCtx->m_s4FreqBoundUpper = C_TDA182I4_FREQ_DBOUND_UPPER;
+    pEUCtx->m_s4FreqBoundLower = C_TDA182I4_FREQ_DBOUND_LOWER;
+    pEUCtx->m_s4AnaFreqBoundUpper = C_TDA182I4_FREQ_DBOUND_UPPER_Ana;
+    pEUCtx->m_s4AnaFreqBoundLower = C_TDA182I4_FREQ_DBOUND_LOWER_Ana;
+	
+	pEUCtx->m_Small_Step = C_TDA182I4_CHANNEL_SCAN_JUMP_SMALL_STEP;
+    pEUCtx->m_Middle_Step_Up = C_TDA182I4_CHANNEL_SCAN_JUMP_MIDDLE_STEP_UP;
+    pEUCtx->m_Middle_Step_Down = C_TDA182I4_CHANNEL_SCAN_JUMP_MIDDLE_STEP_DOWN;
+
+	pEUCtx->m_aucPara[2]= (UINT8)C_U8_TDA182I4_AGC_IF_SLP; 
+	pEUCtx->m_aucPara[3]= (UINT8)C_U8_TDA182I4_AGC_IF_INT;
+    pEUCtx->m_aucPara[4]= (UINT8)C_U8_TDA182I4_AGC_IF_MAX;
+	pEUCtx->m_aucPara[5]= (UINT8)C_U8_TDA182I4_AGC_IF_MIN;
+	#if defined(CC_MT5365)||defined(CC_MT5395)
+	#if defined(DTD_INCLUDE)  //Warning: For MT5365/95 must define DTD_INCLUDE for US DTV
+	//AD Target set ,for 5365/95+5112ee
+    pUSCtx->m_aucPara[TUNER_FUNC_EN_TARGET_LEVEL] = TRUE;
+	pUSCtx->m_aucPara[TUNER_PARA_TARGET_LEVEL_MSB] = 0x23;   
+    pUSCtx->m_aucPara[TUNER_PARA_TARGET_LEVEL_LSB] = 0x00;
+	#endif
+	#else
+	//5396
+	/*wenming 12-01-09 comment: pUSCtx->m_aucPara_SLD may override pEUCtx->m_aucPara in some old branches*/
+	pUSCtx->m_aucPara_SLD[2] = (UINT8)C_U8_TDA182I4_AGC_IF_SLP; 
+    pUSCtx->m_aucPara_SLD[3] = (UINT8)C_U8_TDA182I4_AGC_IF_INT;
+    pUSCtx->m_aucPara_SLD[4] = (UINT8)C_U8_TDA182I4_AGC_IF_MAX;
+    pUSCtx->m_aucPara_SLD[5] = (UINT8)C_U8_TDA182I4_AGC_IF_MIN;
+	#endif
+	pUSCtx->u2LO_Step = 100;  //*10 = 1KHz
+
+  	pTDA182I4EqNormal[MOD_PAL_BG - MOD_ANA_TYPE_BEGIN]=EQTDA182I4B;
+	pTDA182I4EqNormal[MOD_PAL_DK - MOD_ANA_TYPE_BEGIN]=EQTDA182I4DK;
+	pTDA182I4EqNormal[MOD_PAL_I - MOD_ANA_TYPE_BEGIN]=EQTDA182I4I;
+	pTDA182I4EqNormal[MOD_SECAM_L - MOD_ANA_TYPE_BEGIN]=EQTDA182I4L;
+	pTDA182I4EqNormal[MOD_SECAM_L1 - MOD_ANA_TYPE_BEGIN]=EQTDA182I4L1;
+	pTDA182I4EqNormal[MOD_NTSC_M - MOD_ANA_TYPE_BEGIN]=EQTDA182I4M;
+
+	pTDA182I4EqWeak[MOD_PAL_BG - MOD_ANA_TYPE_BEGIN]=EQTDA182I4BGWeak;
+	pTDA182I4EqWeak[MOD_PAL_DK - MOD_ANA_TYPE_BEGIN]=EQTDA182I4DKWeak;
+	pTDA182I4EqWeak[MOD_PAL_I - MOD_ANA_TYPE_BEGIN]=EQTDA182I4IWeak;
+	pTDA182I4EqWeak[MOD_SECAM_L - MOD_ANA_TYPE_BEGIN]=EQTDA182I4LWeak;
+	pTDA182I4EqWeak[MOD_SECAM_L1 - MOD_ANA_TYPE_BEGIN]=EQTDA182I4L1Weak;
+	pTDA182I4EqWeak[MOD_NTSC_M - MOD_ANA_TYPE_BEGIN]=EQTDA182I4MWeak;
+	
+	mcDBG_MSG_L2(("TDA182I4_TunerInit\n"));
+
+ } 
+
+
+//----------------------------------------------------------------------------- 
+/** TDA182I4_TunerSetFreq
+ *  Set Tuner PLL forTDA182I4/TDA182I4 to tune RF frequency.
+ *  @param  pTCtx       Pointer of pi tuner driver context.
+ *  @param 	param    Pointer of structure of parameters
+ *  @retval  0 success
+                    1  fail   out of range 
+                   -1 fail  I2C error 
+ */
+//-----------------------------------------------------------------------------
+INT16 TDA182I4_TunerSetFreq(
+    ITUNER_CTX_T *pTCtx,
+    PARAM_SETFREQ_T* param
+    )
+{
+   UINT32 Freq = param->Freq*1000; // transfer to video freq(Hz)
+   UINT8 Mode = param->Modulation;
+   int ii;
+   tmbslFrontEndState_t PLLLock = tmbslFrontEndStateUnknown;
+   tmTDA182I4StandardMode_t stdMode = TDA182I4_ANLG_DK;
+   tmErrorCode_t err = TM_OK;	
+   tmbslFrontEndDependency_t sSrvTunerFunc;
+   SPECIFIC_MEMBER_EU_CTX * pTunerCtx= &(pTCtx->specific_member.eu_ctx);
+
+  // TuningParam TuningParam;	
+ //  TuningParam.m_BandWidth = pTCtx->specific_member.eu_ctx.m_SAW_BW;
+   pTCtx->u4RF_Freq = Freq/1000;//Update current frequency to context
+   mcDBG_MSG_L2((C_NXP_TDA182I4_STR " Set Freq %d Hz\n",Freq));
+     
+   /* Driver layer struct set-up to link with user written functions */
+	sSrvTunerFunc.sIo.Write 			= UserWrittenI2CWrite;
+	sSrvTunerFunc.sIo.Read				= UserWrittenI2CRead;
+	sSrvTunerFunc.sTime.Get 			= NULL;
+	sSrvTunerFunc.sTime.Wait			= UserWrittenWait;
+	sSrvTunerFunc.sDebug.Print			= UserWrittenPrint;
+	sSrvTunerFunc.sMutex.Init			= NULL;
+	sSrvTunerFunc.sMutex.DeInit 		= NULL;
+	sSrvTunerFunc.sMutex.Acquire		= NULL;
+	sSrvTunerFunc.sMutex.Release		= NULL;
+	sSrvTunerFunc.dwAdditionalDataSize	= 0;
+	sSrvTunerFunc.pAdditionalData		= NULL;
+
+  if(!fgTunerInit)
+  {
+
+   /* TDA182I4 Driver initialization  */
+
+       err = tmbslTDA182I4_Open(0, &sSrvTunerFunc);
+    if(err == TM_OK)
+   		{   
+   		mcDBG_MSG_INFO(("tmbslTDA182I4_Open OK\n"));		
+		err = tmbslTDA182I4_HwInit(0);   /* TDA182I4 Hardware initialization */
+
+   		}
+   	 else
+		mcDBG_MSG_INFO(("tmbslTDA182I4_Open failed\n"));
+   	if(err == TM_OK)
+	  	{
+	  	mcDBG_MSG_INFO(("tmbslTDA182I4_HwInit OK\n"));
+	  	err=tmbslTDA182I4_SetInternalVsync(0,TRUE);
+	  	}
+	  else
+	  	{
+	  	mcDBG_MSG_INFO(("tmbslTDA182I4_HwInit failed\n"));
+	  	}
+   	 if(err == TM_OK)
+   		{mcDBG_MSG_INFO(("tmbslTDA182I4_SetInternalVsync OK\n"));		
+		err = tmbslTDA182I4_SetStandardMode(0, TDA182I4_ANLG_DK);   /* TDA182I4 standard mode selection */
+   		}   
+  	 else
+		mcDBG_MSG_INFO(("tmbslTDA182I4_SetInternalVsync failed\n"));
+   	 if(err != TM_OK)
+		{
+		mcDBG_MSG_INFO(("tmbslTDA182I4_SetStandardMode failed\n"));
+   	 	}
+	 fgTunerInit=TRUE;
+
+  }
+   
+    //Check if frequency out of tuner LO range			
+if (Freq < (C_TDA182I4_FREQ_DBOUND_LOWER) || 
+				Freq > (C_TDA182I4_FREQ_DBOUND_UPPER))
+	{
+		mcDBG_MSG_L2(("Out of range for LO!\n"));
+		//return (+1);
+	}
+
+ if( Mode == MOD_ATSC_8VSB) //digital reception
+   {
+     stdMode = TDA182I4_ATSC_6MHz;
+	  pTCtx->u2IF_Freq =C_TDA182I4_IF_FREQUENCY_ATSC;
+	  
+   }		
+ else if((Mode==MOD_J83B_64QAM)||(Mode==MOD_J83B_256QAM)||(Mode==MOD_J83B_AUTO_QAM))
+	{ stdMode=TDA182I4_QAM_6MHz;
+	  pTCtx->u2IF_Freq=C_TDA182I4_IF_FREQUENCY_ATSC_64QAM;   //Set the Demod IF freq (KHz)
+	}
+ else if(Mode==MOD_DVBT)
+   { 
+ 	//if(TuningParam.m_BandWidth == SAW_BW_7M)
+ 	if(pTunerCtx->m_SAW_BW==SAW_BW_6M)
+	{ stdMode =TDA182I4_DVBT_6MHz;
+	 pTCtx->u2IF_Freq =C_TDA182I4_IF_FREQUENCY_DVBT_6M;}
+    else if(pTunerCtx->m_SAW_BW==SAW_BW_7M)
+	{ stdMode =TDA182I4_DVBT_7MHz;
+	  pTCtx->u2IF_Freq =C_TDA182I4_IF_FREQUENCY_DVBT_7M;}
+	else 
+	{ stdMode =TDA182I4_DVBT_8MHz;
+	  pTCtx->u2IF_Freq =C_TDA182I4_IF_FREQUENCY_DVBT_8M;}
+   }
+ else if(Mode==MOD_DVBT2)
+   { 
+ 	//if(TuningParam.m_BandWidth == SAW_BW_7M)
+ 	if(pTunerCtx->m_SAW_BW==SAW_BW_6M)
+	{ stdMode =TDA182I4_DVBT_6MHz;
+	 pTCtx->u2IF_Freq =C_TDA182I4_IF_FREQUENCY_DVBT_6M;}
+    else if(pTunerCtx->m_SAW_BW==SAW_BW_7M)
+	{ stdMode =TDA182I4_DVBT_7MHz;
+	  pTCtx->u2IF_Freq =C_TDA182I4_IF_FREQUENCY_DVBT_7M;}
+	else 
+	{ stdMode =TDA182I4_DVBT_8MHz;
+	  pTCtx->u2IF_Freq =C_TDA182I4_IF_FREQUENCY_DVBT_8M;}
+   }
+ 
+ else if(Mode ==MOD_DVBC)
+   {
+	stdMode = TDA182I4_QAM_8MHz;
+	pTCtx->u2IF_Freq =C_TDA182I4_IF_FREQUENCY_DVBC;
+   }
+ else if(Mode ==MOD_ISDBT)
+   {
+	stdMode = TDA182I4_ISDBT_6MHz;
+	pTCtx->u2IF_Freq =C_TDA182I4_IF_FREQUENCY_ISDBT;
+   }
+ else if(Mode ==MOD_DTMB)
+   {
+	stdMode = TDA182I4_DMBT_8MHz;
+	pTCtx->u2IF_Freq =C_TDA182I4_IF_FREQUENCY_DTMB;
+   }
+
+ else  if( Mode == MOD_PAL_BG) 
+   {
+    if(Freq<300000000)
+	 {
+	  stdMode = TDA182I4_ANLG_B;
+      pTCtx->u2IF_Freq_A =C_TDA182I4_IF_FREQUENCY_PAL_B;
+ 	 }
+    else
+	 {
+	  stdMode = TDA182I4_ANLG_GH;
+	  pTCtx->u2IF_Freq_A =C_TDA182I4_IF_FREQUENCY_PAL_G;
+	 }
+   }
+ else  if( Mode == MOD_PAL_DK) 
+   {
+	stdMode = TDA182I4_ANLG_DK;
+	pTCtx->u2IF_Freq_A =C_TDA182I4_IF_FREQUENCY_PAL_DK;
+
+   }
+ else  if( Mode == MOD_PAL_I) 
+   {
+	stdMode = TDA182I4_ANLG_I;
+	pTCtx->u2IF_Freq_A =C_TDA182I4_IF_FREQUENCY_PAL_I;
+   }
+ else  if( Mode == MOD_SECAM_L) 
+   {
+	stdMode = TDA182I4_ANLG_L;
+	pTCtx->u2IF_Freq_A =C_TDA182I4_IF_FREQUENCY_SECAM_L;
+   }
+ else  if( Mode == MOD_SECAM_L1) 
+   {
+	stdMode = TDA182I4_ANLG_LL;
+	pTCtx->u2IF_Freq_A =C_TDA182I4_IF_FREQUENCY_SECAM_L1;
+   }
+ else  if( Mode == MOD_NTSC_M) 
+   {
+	stdMode = TDA182I4_ANLG_MN;
+	pTCtx->u2IF_Freq_A =C_TDA182I4_IF_FREQUENCY_NTSC_M;
+   }
+ 
+	if(tmbslTDA182I4_SetStandardMode(0, stdMode) != TM_OK)
+		{
+		mcDBG_MSG_ERR(("SetStandardMode fail!\n"));
+		return -1;
+		}
+	
+	if(tmbslTDA182I4_SetPowerState(0,tmPowerOn) != TM_OK)
+		{
+		mcDBG_MSG_ERR(("tmbslTDA182I4_SetPowerState fail!\n"));
+		return -1;
+		}
+		
+   	if(tmbslTDA182I4_SetRF(0, Freq) != TM_OK)
+	{
+		mcDBG_MSG_ERR(("Set tuner PLL 0x%02X fail!\n",pTCtx->I2cAddress));
+		return -1;
+	}
+	else
+	{
+	 mcDBG_MSG_L2(("LO_%02X: %dHz\n",pTCtx->I2cAddress, param->Freq));
+	 
+	 //Loop check PLL lock
+	 //polling PLL lock status
+	for(ii=0;ii<C_NXP_TDA182I4_PLL_POLL_CNT;ii++)
+	{
+		x_thread_delay(C_NXP_TDA182I4_PLL_POLL_INTERVAL);
+		tmbslTDA182I4_GetLockStatus(0, &PLLLock);
+		if(PLLLock == tmbslFrontEndStateLocked)
+			break;
+	}
+	
+	if(ii<C_NXP_TDA182I4_PLL_POLL_CNT)
+	{
+	 mcDBG_MSG_L2(("PLL lock at %d th time\n",ii));
+	}
+	else
+	{
+	 mcDBG_MSG_ERR(("PLL unlock !(%d)",ii));
+	}
+	}
+   
+    x_thread_delay((UINT32)(10));
+
+/*read ChipID
+	{
+		UInt8 Addr = 0;
+		UInt8 Data[8];
+	UserWrittenI2CRead(0,	1, &Addr,
+3, Data);
+	mcDBG_MSG_ERR(("CHIP ID is %x %x %x\n",Data[0],Data[1],Data[2]));
+    	}
+  */
+    return (0);
+}
+//----------------------------------------------------------------------------- 
+/** TDA182I4_TunerGetVer
+ *  Get Tuner type version
+ *  @param  pTCtx       Pointer of pi tuner driver context.
+ *  @retval tuner model name
+ */
+//-----------------------------------------------------------------------------
+static CHAR *TDA182I4_TunerGetVer(VOID)
+{
+    return (C_NXP_TDA182I4_STR);
+	
+}
+
+//----------------------------------------------------------------------------- 
+/** TDA182I4_TunerGetVer
+ *  Set saw bandwidth
+ *  @param  pTCtx       Pointer of pi tuner driver context.
+ *  @retval saw bandwidth
+ */
+//-----------------------------------------------------------------------------
+static VOID  TDA182I4_SetSawBw(ITUNER_CTX_T * pTCtx, UINT8 sawbw)
+{
+ pTCtx->specific_member.eu_ctx.m_SAW_BW=sawbw;
+ mcDBG_MSG_L2(("TDA182I4_SetSawBw=%d\n",sawbw));
+
+}
+
+/*wenming 11-12-9:Add DVBT & C SSI function*/
+static INT32 i4AdjustPowerRec_DVBT = 1;
+static INT32 i4AdjustPowerRec_DVBC = 2;  
+
+UINT32 TDA182I4_GetSSI_DVBT(ITUNER_CTX_T* pTunerCtx)
+{
+    INT16 Power_Ref[] =
+    {
+        -93,
+        -91,
+        -90,
+        -89,
+        -88,
+        -87,
+        -85,
+        -84,
+        -83,
+        -82,
+        -82,
+        -80,
+        -78,
+        -77,
+        -76,
+    };
+    INT32 i4Power_ref = 0;
+	UINT8 ucPower_rec_dbuv = 0;
+    INT32 i4Power_rec_dbm = 0;
+    INT32 i4Power_rel = 0;
+
+    UINT32 u4SSI_Indicator = 0;
+    SPECIFIC_MEMBER_EU_CTX * pCtx= &(pTunerCtx->specific_member.eu_ctx);
+
+    // initial level for best mux, Ken, 100607
+    pCtx->m_SigLvScan = 0;
+
+
+
+    /* Get Power Ref Value */
+    mcDBG_MSG_L2(("DVBT: Mod=%d, Code Rate=%d\n",pTunerCtx->sSSIPara.i2Mod,pTunerCtx->sSSIPara.i2CR));
+
+
+    /* Get Power_Rec Value */
+	tmbslTDA182I4_GetPowerLevel(0, &ucPower_rec_dbuv); /*wenming 11-12-9:api return in 0.5 dbuv term*/
+	ucPower_rec_dbuv = ucPower_rec_dbuv/2;
+	i4Power_rec_dbm = ucPower_rec_dbuv - 107;
+   i4Power_rec_dbm+=i4AdjustPowerRec_DVBT;
+   mcDBG_MSG_L2(("DVBT: Power_rec=%d,%d\n",i4Power_rec_dbm,i4AdjustPowerRec_DVBT));
+
+	/*Get Ref Value-Start*/
+	if(pTunerCtx->sSSIPara.i2Mod==DVBT_Qam_Mode_Unknow)
+	{
+		mcDBG_MSG_L1(("DVBT: QAM mode unknown; Power_rec=%d, Power_ref=%d, Power_rel=%d\n",i4Power_rec_dbm,i4Power_ref,i4Power_rel));
+		return u4SSI_Indicator;
+	}
+	else
+	{
+		i4Power_ref = Power_Ref[(pTunerCtx->sSSIPara.i2Mod)*DVBT_CR_Mode_Size + pTunerCtx->sSSIPara.i2CR];
+	}
+
+
+
+    /* Get Power Rel Value */
+    i4Power_rel = i4Power_rec_dbm - i4Power_ref;
+	mcDBG_MSG_L2(("DVBT: Power_rec=%d, Power_ref=%d, Power_rel=%d\n",i4Power_rec_dbm,i4Power_ref,i4Power_rel));
+    /* Cal SSI_Indicator Value */
+    if(i4Power_rel < -15)
+    {
+        u4SSI_Indicator = 0;
+    }
+    else if((i4Power_rel >= -15) && (i4Power_rel < 0))
+    {
+        u4SSI_Indicator = 2*(i4Power_rel+15)/3;
+    }
+    else if((i4Power_rel >= 0) && (i4Power_rel < 20))
+    {
+        u4SSI_Indicator = 4*i4Power_rel+10;
+    }
+    else if((i4Power_rel >= 20) && (i4Power_rel < 35))
+    {
+        u4SSI_Indicator = 2*(i4Power_rel-20)/3+90;
+    }
+    else if(i4Power_rel >= 35)
+    {
+        u4SSI_Indicator = 100;
+    }
+
+    // update signal level for best mux, Ken, 100607
+    pCtx->m_SigLvScan = (INT8)u4SSI_Indicator;
+    mcDBG_MSG_L2(("u4SSI_Indicator = %d",u4SSI_Indicator));
+    return u4SSI_Indicator;
+}
+
+/*wenming 11-10-13:DVBC SSI*/
+UINT32 TDA182I4_GetSSI_DVBC(ITUNER_CTX_T* pTunerCtx)
+{
+    INT16 Power_Ref[] =
+    {
+        -82,//16QAM
+        -79,//32QAM
+        -76,//64
+        -73,//128QAM
+        -70,//256QAM
+    };
+    INT32 i4Power_ref = 0;
+    UINT8 ucPower_rec_dbuv = 0;
+    INT32 i4Power_rec_dbm = 0;
+    INT32 i4Power_rel = 0;
+	INT16 refIndex=0;
+    UINT32 u4SSI_Indicator = 0;
+
+    SPECIFIC_MEMBER_EU_CTX * pCtx= &(pTunerCtx->specific_member.eu_ctx);
+    pCtx->m_SigLvScan = 0;
+    mcDBG_MSG_L2(("DVBC: Mod=%d, Code Rate=%d\n",pTunerCtx->sSSIPara.i2Mod,pTunerCtx->sSSIPara.i2CR));
+
+	/* Get Power_Rec Value */
+	tmbslTDA182I4_GetPowerLevel(0, &ucPower_rec_dbuv); /*wenming 11-12-9:api return in 0.5 dbuv term*/
+	ucPower_rec_dbuv = ucPower_rec_dbuv/2;
+	i4Power_rec_dbm = ucPower_rec_dbuv - 107;
+    i4Power_rec_dbm+=i4AdjustPowerRec_DVBC;
+	refIndex=pTunerCtx->sSSIPara.i2Mod;
+	mcDBG_MSG_L1(("refIndex=%d",refIndex));
+	if(refIndex>4)
+	{
+		mcDBG_MSG_L1(("DVBC: QAM mode unknown; Power_rec=%d, Power_ref=%d, Power_rel=%d\n",i4Power_rec_dbm,i4Power_ref,i4Power_rel));
+		return u4SSI_Indicator;
+	}
+	else
+	{
+		i4Power_ref = Power_Ref[refIndex];
+		mcDBG_MSG_L2(("i4Power_ref=%d\n",i4Power_ref));
+	}
+    i4Power_rel = i4Power_rec_dbm - i4Power_ref;
+	mcDBG_MSG_L2(("DVBC: Power_rec=%d, Power_ref=%d, Power_rel=%d\n",i4Power_rec_dbm,i4Power_ref,i4Power_rel));
+    if(i4Power_rel < -15)
+    {
+        u4SSI_Indicator = 0;
+    }
+    else if((i4Power_rel >= -15) && (i4Power_rel < 0))
+    {
+        u4SSI_Indicator = 2*(i4Power_rel+15)/3;
+    }
+    else if((i4Power_rel >= 0) && (i4Power_rel < 20))
+    {
+        u4SSI_Indicator = 4*i4Power_rel+10;
+    }
+    else if((i4Power_rel >= 20) && (i4Power_rel < 35))
+    {
+        u4SSI_Indicator = 2*(i4Power_rel-20)/3+90;
+    }
+    else if(i4Power_rel >= 35)
+    {
+        u4SSI_Indicator = 100;
+    }
+    pCtx->m_SigLvScan = (INT8) u4SSI_Indicator;
+    return u4SSI_Indicator;
+}
+
+
+//-----------------------------------------------------------------------------
+/** TDA182I4_SetSSICondition
+ *  Set SSI Condition for TH2603
+ *  @param
+ *  @retval void
+ */
+//-----------------------------------------------------------------------------
+void TDA182I4_SetSSICondition(ITUNER_CTX_T* pTunerCtx, VOID * pInOutVal)
+{
+    pTunerCtx->sSSIPara.i2Mod = *((INT16*) pInOutVal);
+    pTunerCtx->sSSIPara.i2CR = *((INT16*) pInOutVal+1);
+
+}
+
+
+//----------------------------------------------------------------------------- 
+/** TDA182I4_TunerOP
+ * Set/Get function
+ *  @param  pTCtx       Pointer of pi tuner driver context.
+ *  @param  eOperation       To Get/Set operation id
+ *  @retval  ITUNER_OK    Operation Success
+ *  @retval  ITUNER_NOT_OK    Operation fail
+ *  @retval  ITUNER_NOT_SUPPORTED Operation not supported in  driver
+ */
+//-----------------------------------------------------------------------------
+INT16 TDA182I4_TunerOP(ITUNER_CTX_T * pTCtx, ITUNEROP_T eOperation, UINT8 SetVal,  VOID * pInOutVal){
+         
+    switch(eOperation){
+		
+    case itGetVer:
+        {
+        CHAR ** RetStr=(CHAR **)pInOutVal;
+        *RetStr=TDA182I4_TunerGetVer();
+        }
+        break;
+
+		
+	case itSetTunerInit:
+       {
+          tmbslTDA182I4_Close(tmUnit0); 
+		  fgTunerInit = FALSE;
+		  mcDBG_MSG_L1(("Tuner init flag=%d\n",fgTunerInit));
+		  mcDBG_MSG_L1(("TDA18274 tuner close\n"));
+		}
+
+	 break;
+	 
+	case itGetTunerRelReg://Get ATD Tuner Rel register setting
+		{
+			/*wenming 11-10-21:for PRA set*/
+			UINT8 subSysId = SetVal;
+			UINT8 u1PRATar,u1Dagc,u1PRAConf,u1DagcTargetLevel_H,u1DagcTargetLevel_L;
+			
+			u1PRATar =0x10;
+			u1Dagc = 0x08;
+			u1PRAConf=0x88;
+			u1DagcTargetLevel_H = 0x38;
+			u1DagcTargetLevel_L = 0x28;
+			
+			switch(subSysId)
+			{
+			#if !(defined(CC_MT5365) || defined(CC_MT5395))
+				case MOD_PAL_BG:
+				case MOD_PAL_DK:
+					u1DagcTargetLevel_H = 0x2c;
+					u1DagcTargetLevel_L = 0x2c;
+				break;
+				case MOD_PAL_I:
+					u1DagcTargetLevel_H = 0x2a;
+					u1DagcTargetLevel_L = 0x2a;
+				break;
+				case MOD_NTSC_M:
+					u1DagcTargetLevel_H = 0x30;
+					u1DagcTargetLevel_L = 0x30;
+			    break;
+			#endif
+				case MOD_SECAM_L:
+				case MOD_SECAM_L1: /*Lower PRA Target level & Fix DAGC & Lower PRA Speed*/
+			    u1PRATar =0x05;
+			    u1Dagc=0x88;
+			    u1PRAConf=0x99;  /*wenming 11-12-07: speed up PRA for secam resume slowly issue*/
+			    break;
+			default://PAL & NTSC
+			    break;
+			}
+			//PRA target	
+			  arrAtdRelReg[PRA_TARGET_H_INDEX].u1RegVal=u1PRATar;
+			  arrAtdRelReg[PRA_TARGET_L_INDEX].u1RegVal=u1PRATar;
+			  arrAtdRelReg[SLD_DAGC_00_INDEX].u1RegVal=u1Dagc;
+			  arrAtdRelReg[PRA_LOOP_CONF_INDEX].u1RegVal=u1PRAConf;
+			  arrAtdRelReg[DAGC_TARGET_LEVEL_H_INDEX].u1RegVal=u1DagcTargetLevel_H;
+			  arrAtdRelReg[DAGC_TARGET_LEVEL_L_INDEX].u1RegVal=u1DagcTargetLevel_L;
+			/*wenming 11-10-20:for PRA set end*/
+		  *(ATD_TUNER_REL_REG_T **)pInOutVal=arrAtdRelReg;
+		 
+		}
+		break;
+    case itGetEqScriptNormal:
+		/*wenming 11-12-14: EQ will be diffrent by B or G*/
+		if((MOD_PAL_BG - MOD_ANA_TYPE_BEGIN) == SetVal)
+		{
+			if(pTCtx->u4RF_Freq < 300000) /*PAL B system*/
+			{ 
+				pTDA182I4EqNormal[SetVal] = EQTDA182I4B;
+			}
+			else /*PAL G system*/
+			{
+				pTDA182I4EqNormal[SetVal] = EQTDA182I4G;
+			}
+		}
+        *(UINT8**)pInOutVal = pTDA182I4EqNormal[SetVal];
+        break;
+    case itGetEqScriptWeak: 
+        *(UINT8**)pInOutVal = pTDA182I4EqWeak[SetVal];
+        break;
+	case itSetSawBw:
+		{
+		TDA182I4_SetSawBw(pTCtx,SetVal);
+		}
+		break;
+    case itSetIF:
+    	break;
+	/*wenming 11-12-9:Add SSI function*/
+	case itSetSSICond:
+    TDA182I4_SetSSICondition(pTCtx, pInOutVal);
+    break;
+	case itGetSSIIndex:   /*wenming 11-12-9:0 for DVBT SSI, 1 for DVBC SSI*/
+	{ if (SetVal==0)
+		*((INT32*)pInOutVal) = TDA182I4_GetSSI_DVBT(pTCtx);
+     else
+		 *((INT32*)pInOutVal) = TDA182I4_GetSSI_DVBC(pTCtx);
+	}
+	case itGetAnaFreqBound:
+		   {
+		   TUNER_ANA_ATTRIBUTE_T   *psTunerAnaAttribute;
+
+		   psTunerAnaAttribute = (TUNER_ANA_ATTRIBUTE_T *) pInOutVal;
+		   psTunerAnaAttribute->ui4_lower_bound_freq = C_TDA182I4_FREQ_DBOUND_LOWER_Ana;
+		   psTunerAnaAttribute->ui4_upper_bound_freq = C_TDA182I4_FREQ_DBOUND_UPPER_Ana;
+		   }
+	 break;
+
+	case itSetRSetting:
+			{
+		       switch(SetVal)
+				{
+			#if AD_R_setting    //have IF attenuator
+					case MOD_PAL_BG: 
+					case MOD_PAL_DK: 
+					case MOD_PAL_I:
+					case MOD_NTSC_M:
+					*(UINT32 *)pInOutVal=0x06 ;
+					break;
+					case MOD_SECAM_L:
+					case MOD_SECAM_L1:
+					*(UINT32 *)pInOutVal=0x07 ;
+					break;
+					case MOD_ATSC_8VSB:
+					case MOD_J83B_64QAM:
+					case MOD_J83B_256QAM:
+					case MOD_J83B_AUTO_QAM:
+					*(UINT32 *)pInOutVal=0x06 ;
+					break;
+					case MOD_DVBT:
+					case MOD_DVBC:
+					*(UINT32 *)pInOutVal=0x06 ;
+					break;
+			#else               //No IF attenuator
+					case MOD_PAL_BG: 
+					case MOD_PAL_DK: 
+					case MOD_PAL_I:
+					case MOD_NTSC_M:
+					*(UINT32 *)pInOutVal=0x00 ;
+					break;
+					case MOD_SECAM_L:
+					case MOD_SECAM_L1:
+					*(UINT32 *)pInOutVal=0x00 ;
+					break;
+					case MOD_ATSC_8VSB:
+					case MOD_J83B_64QAM:
+					case MOD_J83B_256QAM:
+					case MOD_J83B_AUTO_QAM:
+					*(UINT32 *)pInOutVal=0x00 ;
+					break;
+					case MOD_DVBT:
+					case MOD_DVBC:
+					*(UINT32 *)pInOutVal=0x00 ;
+					break;
+			#endif
+				default:
+				*(UINT32 *)pInOutVal=0x06 ;
+				break;
+
+				}
+				mcDBG_MSG_L1(("Tuner R_setting Value=%d\n", *(UINT32 *)pInOutVal));
+				}
+				break;
+    default:
+        mcDBG_MSG_L2(("NO case !Not implement in NXP182I4 Tuner.\n"));
+        return ITUNER_NOT_SUPPORTED;
+    }
+
+    return ITUNER_OK;
+}
+
+#define TC90527_I2C_ADDRESS 0x30
+
+
+//*--------------------------------------------------------------------------------------
+//* Function Name       : UserWrittenI2CRead
+//* Object              : 
+//* Input Parameters    : 	tmUnitSelect_t tUnit
+//* 						UInt32 AddrSize,
+//* 						UInt8* pAddr,
+//* 						UInt32 ReadLen,
+//* 						UInt8* pData
+//* Output Parameters   : tmErrorCode_t.
+//*--------------------------------------------------------------------------------------
+tmErrorCode_t UserWrittenI2CRead(tmUnitSelect_t tUnit,	UInt32 AddrSize, UInt8* pAddr,
+UInt32 ReadLen, UInt8* pData)
+{
+	/* Variable declarations */
+
+
+	/* Customer code here */
+	/* ...*/
+#ifndef TC90527_NUTUNE_BYPASS
+#ifdef TUNER_USE_SPI //spi-i2c control tuner 	
+		if(ucSPIRead(NXP_TDA182I4_ADDRESS, *pAddr, pData, ReadLen) == 0)   /*wenming 110920*/
+#else// tuner use i2c 
+		if(ucI2cRead(NXP_TDA182I4_ADDRESS, *pAddr, pData, ReadLen) == 0)   /*wenming 110920*/
+#endif
+		{
+			return TM_OK;
+		}
+	else
+		{
+			mcDBG_MSG_ERR(("ICtrlBus_I2cTunerRead_Ext: %02X-%02X,ReadLen:%02X! TestLog:Read Fail!\n", NXP_TDA182I4_ADDRESS, *pAddr, ReadLen));
+			return !TM_OK;
+		}
+#else
+	int temp=0;
+	UINT8 ii;
+	UINT32 wordAddr = 0;
+	UINT8 tnflg=0xFE;
+	UINT8 targAddr=NXP_TDA182I4_ADDRESS;  //Tuner I2C  address
+    for(ii=0;ii<ReadLen;ii++)
+ 	   {
+ 	    wordAddr=(tnflg<<16)|(targAddr<<8)|((*pAddr)+ii);  
+ 		temp|=ucI2cRead_SpecialBypass(TC90527_I2C_ADDRESS,wordAddr,pData+ii,1);
+			
+ 	   }
+    if(temp==0)
+		{
+			return TM_OK;
+		}
+		else
+			{
+			mcDBG_MSG_ERR(("UserWrittenI2CRead: %02X-%02X,ReadLen:%02X! TestLog:Read Fail!\n", NXP_TDA182I4_ADDRESS, *pAddr, ReadLen));
+			return !TM_OK;
+			}
+#endif
+}
+
+
+//*--------------------------------------------------------------------------------------
+//* Function Name       : UserWrittenI2CWrite
+//* Object              : 
+//* Input Parameters    : 	tmUnitSelect_t tUnit
+//* 						UInt32 AddrSize,
+//* 						UInt8* pAddr,
+//* 						UInt32 WriteLen,
+//* 						UInt8* pData
+//* Output Parameters   : tmErrorCode_t.
+//*--------------------------------------------------------------------------------------
+#define I2C_MAX_WRITE 15
+
+
+tmErrorCode_t UserWrittenI2CWrite (tmUnitSelect_t tUnit, 	UInt32 AddrSize, UInt8* pAddr,
+UInt32 WriteLen, UInt8* pData)
+	{
+		/* Variable declarations */
+	
+#ifndef TC90527_NUTUNE_BYPASS
+		/* ...*/
+	UINT8 ucI = 0;
+	UINT8 acBuffer[I2C_MAX_WRITE+1] = {0};
+	acBuffer[0] = *pAddr;
+	for(ucI=0;ucI < WriteLen;ucI++)
+	{
+		acBuffer[ucI+1] = pData[ucI];
+	}
+#ifdef TUNER_USE_SPI //spi-i2c control tuner 		
+	if(ucSPIWriteOnly(NXP_TDA182I4_ADDRESS,acBuffer,WriteLen+1)==0)
+#else
+	if(ucI2cWrite(NXP_TDA182I4_ADDRESS,acBuffer[0],acBuffer+1,WriteLen)==0) 
+#endif
+		{
+			return TM_OK;
+		}
+	else
+		{
+			mcDBG_MSG_ERR(("UserWrittenI2CWrite: %02X-%02X,WriteLen:%02X! TestLog:Write Fail!\n", NXP_TDA182I4_ADDRESS, *pAddr, WriteLen));
+			return !TM_OK;
+		}
+#else
+	int temp=0;
+	UINT8 ii,tmp_dat[4];
+	tmp_dat[0]=NXP_TDA182I4_ADDRESS;
+	for(ii=0;ii<WriteLen;ii++)
+	{
+		
+		tmp_dat[1]=(*pAddr)+ii;
+		tmp_dat[2]=*(pData+ii);
+		temp|=ucI2cWrite(TC90527_I2C_ADDRESS, 0xFE, tmp_dat, 3);
+			
+	}	
+	if(temp==0)
+		{
+			return TM_OK;
+		}
+	else
+		{
+			mcDBG_MSG_ERR(("ICtrlBus_I2cTunerWrite_Ext: %02X-%02X,WriteLen:%02X! TestLog:Write Fail!\n", NXP_TDA182I4_ADDRESS, *pAddr, WriteLen));
+			return !TM_OK;
+		}
+		/* ...*/
+		/* End of Customer code here */
+#endif
+	
+	}
+
+
+
+//*--------------------------------------------------------------------------------------
+//* Function Name       : UserWrittenWait
+//* Object              : 
+//* Input Parameters    : 	tmUnitSelect_t tUnit
+//* 						UInt32 tms
+//* Output Parameters   : tmErrorCode_t.
+//*--------------------------------------------------------------------------------------
+tmErrorCode_t UserWrittenWait(tmUnitSelect_t tUnit, UInt32 tms)
+{
+    /* Variable declarations */
+    tmErrorCode_t err = TM_OK;
+
+    /* Customer code here */
+    /* ...*/
+	x_thread_delay(tms);
+    /* ...*/
+    /* End of Customer code here */
+
+    return err;
+}
+
+//*--------------------------------------------------------------------------------------
+//* Function Name       : UserWrittenPrint
+//* Object              : 
+//* Input Parameters    : 	UInt32 level, const char* format, ...
+//* 						
+//* Output Parameters   : tmErrorCode_t.
+//*--------------------------------------------------------------------------------------
+tmErrorCode_t UserWrittenPrint(UInt32 level, const char* format, ...)
+{
+    /* Variable declarations */
+    tmErrorCode_t err = TM_OK;
+
+    /* Customer code here */
+    /* ...*/
+	mcDBG_MSG_ERR(("%s\n",format));
+    /* ...*/
+    /* End of Customer code here */
+
+    return err;
+}
+
+

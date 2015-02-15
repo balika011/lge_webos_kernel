@@ -1,0 +1,4337 @@
+/*----------------------------------------------------------------------------*
+ * Copyright Statement:                                                       *
+ *                                                                            *
+ *   This software/firmware and related documentation ("MediaTek Software")   *
+ * are protected under international and related jurisdictions'copyright laws *
+ * as unpublished works. The information contained herein is confidential and *
+ * proprietary to MediaTek Inc. Without the prior written permission of       *
+ * MediaTek Inc., any reproduction, modification, use or disclosure of        *
+ * MediaTek Software, and information contained herein, in whole or in part,  *
+ * shall be strictly prohibited.                                              *
+ * MediaTek Inc. Copyright (C) 2010. All rights reserved.                     *
+ *                                                                            *
+ *   BY OPENING THIS FILE, RECEIVER HEREBY UNEQUIVOCALLY ACKNOWLEDGES AND     *
+ * AGREES TO THE FOLLOWING:                                                   *
+ *                                                                            *
+ *   1)Any and all intellectual property rights (including without            *
+ * limitation, patent, copyright, and trade secrets) in and to this           *
+ * Software/firmware and related documentation ("MediaTek Software") shall    *
+ * remain the exclusive property of MediaTek Inc. Any and all intellectual    *
+ * property rights (including without limitation, patent, copyright, and      *
+ * trade secrets) in and to any modifications and derivatives to MediaTek     *
+ * Software, whoever made, shall also remain the exclusive property of        *
+ * MediaTek Inc.  Nothing herein shall be construed as any transfer of any    *
+ * title to any intellectual property right in MediaTek Software to Receiver. *
+ *                                                                            *
+ *   2)This MediaTek Software Receiver received from MediaTek Inc. and/or its *
+ * representatives is provided to Receiver on an "AS IS" basis only.          *
+ * MediaTek Inc. expressly disclaims all warranties, expressed or implied,    *
+ * including but not limited to any implied warranties of merchantability,    *
+ * non-infringement and fitness for a particular purpose and any warranties   *
+ * arising out of course of performance, course of dealing or usage of trade. *
+ * MediaTek Inc. does not provide any warranty whatsoever with respect to the *
+ * software of any third party which may be used by, incorporated in, or      *
+ * supplied with the MediaTek Software, and Receiver agrees to look only to   *
+ * such third parties for any warranty claim relating thereto.  Receiver      *
+ * expressly acknowledges that it is Receiver's sole responsibility to obtain *
+ * from any third party all proper licenses contained in or delivered with    *
+ * MediaTek Software.  MediaTek is not responsible for any MediaTek Software  *
+ * releases made to Receiver's specifications or to conform to a particular   *
+ * standard or open forum.                                                    *
+ *                                                                            *
+ *   3)Receiver further acknowledge that Receiver may, either presently       *
+ * and/or in the future, instruct MediaTek Inc. to assist it in the           *
+ * development and the implementation, in accordance with Receiver's designs, *
+ * of certain softwares relating to Receiver's product(s) (the "Services").   *
+ * Except as may be otherwise agreed to in writing, no warranties of any      *
+ * kind, whether express or implied, are given by MediaTek Inc. with respect  *
+ * to the Services provided, and the Services are provided on an "AS IS"      *
+ * basis. Receiver further acknowledges that the Services may contain errors  *
+ * that testing is important and it is solely responsible for fully testing   *
+ * the Services and/or derivatives thereof before they are used, sublicensed  *
+ * or distributed. Should there be any third party action brought against     *
+ * MediaTek Inc. arising out of or relating to the Services, Receiver agree   *
+ * to fully indemnify and hold MediaTek Inc. harmless.  If the parties        *
+ * mutually agree to enter into or continue a business relationship or other  *
+ * arrangement, the terms and conditions set forth herein shall remain        *
+ * effective and, unless explicitly stated otherwise, shall prevail in the    *
+ * event of a conflict in the terms in any agreements entered into between    *
+ * the parties.                                                               *
+ *                                                                            *
+ *   4)Receiver's sole and exclusive remedy and MediaTek Inc.'s entire and    *
+ * cumulative liability with respect to MediaTek Software released hereunder  *
+ * will be, at MediaTek Inc.'s sole discretion, to replace or revise the      *
+ * MediaTek Software at issue.                                                *
+ *                                                                            *
+ *   5)The transaction contemplated hereunder shall be construed in           *
+ * accordance with the laws of Singapore, excluding its conflict of laws      *
+ * principles.  Any disputes, controversies or claims arising thereof and     *
+ * related thereto shall be settled via arbitration in Singapore, under the   *
+ * then current rules of the International Chamber of Commerce (ICC).  The    *
+ * arbitration shall be conducted in English. The awards of the arbitration   *
+ * shall be final and binding upon both parties and shall be entered and      *
+ * enforceable in any court of competent jurisdiction.                        *
+ *---------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------
+ *
+ * $Author: p4admin $
+ * $Date: 2015/02/15 $
+ * $RCSfile: fbm_pool_config.c,v $
+ * $Revision: #1 $
+ *
+ *---------------------------------------------------------------------------*/
+
+/** @file fbm_pool_config.c
+ *  Brief of file fbm_pool_config.c.
+ *  FBM Pool Management
+ */
+
+//---------------------------------------------------------------------------
+// Include files
+//---------------------------------------------------------------------------
+
+#include "x_lint.h"
+#include "fbm_pool.h"
+#include "fbm_pool_config.h"
+#include "fbm_debug.h"
+#include "../tve/tve_if.h"
+
+#ifdef CC_SRM_ON
+#include "srm_drvif.h"
+#endif
+
+LINT_EXT_HEADER_BEGIN
+#include "source_table.h"
+#include "vdp_drvif.h"
+#include "x_assert.h"
+#include "x_hal_5381.h"
+#include "drvcust_if.h"
+#include "x_mid.h"
+LINT_EXT_HEADER_END
+
+
+#include "drv_tdtv_drvif.h"
+
+#undef min   
+#define min(x, y) ((x < y) ? x : y)
+
+extern UINT32 SRM_GetScposMode(UINT32 u4VdpId);
+extern UINT32 SRM_GetMddiMode(UINT32 u4VdpId);
+extern UINT32 SRM_GetTDCMode(UINT32 u4VdpId);
+extern UINT32 SRM_GetScposHPDSize(UINT32 u4VdpId);
+#if defined(CC_TRUSTZONE_SUPPORT) && defined(CC_SVP_SUPPORT)
+extern FBM_POOL_T _arPoolTZ[];
+#endif
+//---------------------------------------------------------------------------
+// Static variables
+//---------------------------------------------------------------------------
+
+static FBM_POOL_TYPE_T _eCurrentScposMain = FBM_POOL_TYPE_SCPOS_MAIN;
+static FBM_POOL_TYPE_T _eCurrentScposPip = FBM_POOL_TYPE_SCPOS_PIP;
+static FBM_POOL_TYPE_T _eCurrentMddiMain = FBM_POOL_TYPE_MDDI_MAIN;
+static FBM_POOL_TYPE_T _eCurrentMddiPip = FBM_POOL_TYPE_MDDI_PIP;
+static FBM_POOL_TYPE_T _eCurrentMjc = FBM_POOL_TYPE_MJC_1;
+static FBM_POOL_TYPE_T _eCurrentTdc = FBM_POOL_TYPE_TDC;
+static FBM_POOL_TYPE_T _eCurrentVbi = FBM_POOL_TYPE_VBI;
+
+
+#if 0
+static void _FbmUpdateResolution(UCHAR ucPoolType, FBM_POOL_T* prPool,
+                                 const FBM_POOL_MODULE_INFO_T* prInfo)
+{
+    if ((prPool != NULL) && (prInfo != NULL))
+    {
+        if (ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_MAIN)
+        {
+#if 0
+            if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5360_VERF_64MB) ||
+                    (SRMFBM_GetConf() == FBM_MEM_CFG_MT5360B_VERF_64MB) ||
+                    (SRMFBM_GetConf() == FBM_MEM_CFG_MT5361B_64MB))
+#endif
+                // cyj.porting.2009.03.12
+                if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5388_64MB) ||
+                        (SRMFBM_GetConf() == FBM_MEM_CFG_MT5388_64MB_ATV_WXGA))
+                {
+                    prPool->u4Width = 1536;
+                }
+                else
+                {
+#if 1 // defined(CC_MT5360B) || defined(CC_MT5392B)
+                    if (prInfo->u4PipPop == SRM_TV_MODE_TYPE_POP)
+                    {
+                        prPool->u4Width = 1024;
+                    }
+                    else
+                    {
+                        prPool->u4Width = 2048;
+                    }
+#else
+                    if (prInfo->u4PipPop == SRM_TV_MODE_TYPE_POP)
+                    {
+                        prPool->u4Width = 960;
+                    }
+                    else
+                    {
+                        prPool->u4Width = 1920;
+                    }
+#endif
+                }
+            return;
+        }
+
+        if (prInfo->u4Resolution > SRM_VDP_720HD_RESOLUTION)
+        {
+            if (ucPoolType == (UCHAR) FBM_POOL_TYPE_MJC)
+            {
+                prPool->u4Height = 1088;
+            }
+            else
+            {
+                prPool->u4Height = 1080;
+            }
+
+            if (prInfo->u4PipPop == SRM_TV_MODE_TYPE_POP)
+            {
+                prPool->u4Width = 960;
+                if (ucPoolType == (UCHAR) FBM_POOL_TYPE_MJC)
+                {
+                    prPool->u4Height = 600;
+                }
+            }
+            else
+            {
+                prPool->u4Width = 1920;
+            }
+        }
+        else if (prInfo->u4Resolution == SRM_VDP_720HD_RESOLUTION)
+        {
+            prPool->u4Height = 720;
+            if (prInfo->u4PipPop == SRM_TV_MODE_TYPE_POP)
+            {
+                prPool->u4Width = 960;
+                if (ucPoolType == (UCHAR) FBM_POOL_TYPE_MJC)
+                {
+                    prPool->u4Height = 600;
+                }
+            }
+            else
+            {
+                prPool->u4Width = 1280;
+            }
+        }
+        else
+        {
+            prPool->u4Width = 1440;
+            prPool->u4Height = 576;
+        }
+    }
+}
+#endif
+
+// NPTV dynamically-allocated FBM
+static UINT32 _fbm_u4NptvBeAddr;
+static UINT32 _fbm_u4NptvSubPipAddr;
+static UINT32 _fbm_u4NptvSubPopAddr;
+
+typedef enum
+{
+    FBM_MODE_1080I,
+    FBM_MODE_576I,
+    FBM_MODE_1080P_422,
+    FBM_MODE_1080P_444
+} FBM_POOL_SCENARIO_T;
+
+typedef struct
+{
+    UINT8 u1fgPIP;
+    UINT8 u1fgPOP;
+    UINT8 u1fgSingle;
+    UINT8 u1mode[2];
+    UINT8 u1Interlace[2];
+    UINT8 u1IsMPEG[2];
+    UINT8 u1IsTDC[2];
+    UINT32 u4Resolution[2];
+    UINT32 u4InputWidth[2];
+    UINT32 u4InputHeight[2];
+} FBM_AUTO_INC_ENV_T;
+
+typedef struct
+{
+    UINT32 u4MainPipMaxSize;
+    UINT32 u4MainPopMaxSize;
+    UINT32 u4SubPipMaxSize;
+    UINT32 u4SubPopMaxSize;
+    UINT32 u4MainPipMaxEnd;
+    UINT32 u4MainPopMaxEnd;
+    UINT32 u4SubPipMaxEnd;
+    UINT32 u4SubPopMaxEnd;
+    UINT8 u1MainPipMaxMode;
+    UINT8 u1MainPopMaxMode;
+    UINT8 u1SubPipMaxMode;
+    UINT8 u1SubPopMaxMode;
+} FBM_VIDEO_MAX_T;
+
+FBM_POOL_T _FBM_NPTV_VIDEO_CONF[FBM_TYPE_ENV_MAX][FBM_VIDEO_AGENT_MAX];
+/* get the max range of main and sub video agents */
+FBM_VIDEO_MAX_T _FBM_NPTV_VideoRange;
+
+//For ATVPVR to make scaler dram address fixed.
+static UINT8  fgFBMFixedScalerDram = FALSE; 
+
+// for Pscan testing
+BOOL fgFBM_PscanTest=0;
+BOOL fgFBM_PscanTestSub=0;
+
+void FBM_SetPscanTestMode(BOOL fgIsTestMode)
+{
+    //Printf("---------FBM_SetPscanTestMode: %x----------\n",fgIsTestMode);
+    fgFBM_PscanTest=fgIsTestMode;
+}
+
+void FBM_SetPscanTestModeSubPIP(BOOL fgIsTestMode)
+{
+    //Printf("---------FBM_SetPscanTestMode: %x----------\n",fgIsTestMode);
+    fgFBM_PscanTestSub=fgIsTestMode;
+}
+
+void FBM_FixedScalerDram(UINT8 fgOnOff)
+{
+    fgFBMFixedScalerDram = fgOnOff;
+}
+
+static FBM_AUTO_INC_ENV_T* _FbmGetEnv(FBM_AUTO_INC_ENV_T *env)
+{
+    UINT8 u1fgPIP = SRM_IsPipVideo();
+    UINT8 u1fgPOP = SRM_IsPopVideo();
+    UINT8 u1fgSingle = !(u1fgPIP || u1fgPOP);
+    UINT8 u1mode[2];
+    UINT8 u1Interlace[2];
+    UINT8 u1IsMPEG[2] = {0, 0};
+    UINT8 u1IsTDC[2] = {0, 0};
+    SRM_VDP_INFO_T* prVdpInfo[2];
+    UINT32 u4Resolution[2];
+
+    prVdpInfo[VDP_1] = SRM_GetVdpInfo(VDP_1);
+    prVdpInfo[VDP_2] = SRM_GetVdpInfo(VDP_2);
+
+    u4Resolution[VDP_1] = prVdpInfo[VDP_1]->u4Resolution;
+    if (prVdpInfo[VDP_1]->u4Interlace == 1)
+    {
+        u1Interlace[VDP_1] = 1;
+        if (prVdpInfo[VDP_1]->u4Resolution < SRM_VDP_720HD_RESOLUTION)
+        {
+            u1mode[VDP_1] = FBM_MODE_576I;
+        }
+        else
+        {
+            u1mode[VDP_1] = FBM_MODE_1080I;
+        }
+    }
+    else
+    {
+        u1Interlace[VDP_1] = 0;
+        if (prVdpInfo[VDP_1]->u4VgaTiming == 1)
+        {
+            u1mode[VDP_1] = FBM_MODE_1080P_444;
+        }
+        else
+        {
+            u1mode[VDP_1] = FBM_MODE_1080P_422;
+        }
+    }
+
+    u4Resolution[VDP_2] = prVdpInfo[VDP_2]->u4Resolution;
+    if (prVdpInfo[VDP_2]->u4Interlace == 1)
+    {
+        u1Interlace[VDP_2] = 1;
+        if (prVdpInfo[VDP_2]->u4Resolution < SRM_VDP_720HD_RESOLUTION)
+        {
+            u1mode[VDP_2] = FBM_MODE_576I;
+        }
+        else
+        {
+            u1mode[VDP_2] = FBM_MODE_1080I;
+        }
+    }
+    else
+    {
+        u1Interlace[VDP_2] = 0;
+        if (prVdpInfo[VDP_2]->u4VgaTiming == 1)
+        {
+            u1mode[VDP_2] = FBM_MODE_1080P_444;
+        }
+		
+        else
+        {
+            u1mode[VDP_2] = FBM_MODE_1080P_422;
+        }
+    }
+
+    /**
+     * manual scan mode workaround: during manual scan, these scpos events
+     * will confuse the fbm configuration.
+     */
+    if (SRM_IsScanMode(VDP_1))
+    {
+        u1mode[VDP_1] = FBM_MODE_576I;
+    }
+    if (SRM_IsScanMode(VDP_2))
+    {
+        u1mode[VDP_2] = FBM_MODE_576I;
+    }
+
+    if (prVdpInfo[VDP_1]->u4Source == (UINT32)VSS_DTV)
+    {
+        u1IsMPEG[VDP_1] = 1;
+    }
+    if (prVdpInfo[VDP_2]->u4Source == (UINT32)VSS_DTV)
+    {
+        u1IsMPEG[VDP_2] = 1;
+    }
+
+    if ((prVdpInfo[VDP_1]->u4Source == (UINT32)VSS_ATV) ||
+            (prVdpInfo[VDP_1]->u4Source == (UINT32)VSS_ATD) ||
+            (prVdpInfo[VDP_1]->u4Source == (UINT32)VSS_SV) ||
+            (prVdpInfo[VDP_1]->u4Source == (UINT32)VSS_CVBS) ||
+            (prVdpInfo[VDP_1]->u4Source == (UINT32)VSS_SCART))
+    {
+        u1IsTDC[VDP_1] = 1;
+    }
+    if ((prVdpInfo[VDP_2]->u4Source == (UINT32)VSS_ATV) ||
+            (prVdpInfo[VDP_2]->u4Source == (UINT32)VSS_ATD) ||
+            (prVdpInfo[VDP_2]->u4Source == (UINT32)VSS_SV) ||
+            (prVdpInfo[VDP_2]->u4Source == (UINT32)VSS_CVBS) ||
+            (prVdpInfo[VDP_2]->u4Source == (UINT32)VSS_SCART))
+    {
+        u1IsTDC[VDP_2] = 1;
+    }
+
+    env->u1fgPIP = u1fgPIP;
+    env->u1fgPOP = u1fgPOP;
+    env->u1fgSingle = u1fgSingle;
+    env->u1mode[0] = u1mode[0];
+    env->u1mode[1] = u1mode[1];
+    env->u1Interlace[0] = u1Interlace[0];
+    env->u1Interlace[1] = u1Interlace[1];
+    env->u1IsMPEG[0] = u1IsMPEG[0];
+    env->u1IsMPEG[1] = u1IsMPEG[1];
+    env->u1IsTDC[0] = u1IsTDC[0];
+    env->u1IsTDC[1] = u1IsTDC[1];
+    env->u4Resolution[0] = u4Resolution[0];
+    env->u4Resolution[1] = u4Resolution[1];
+    env->u4InputWidth[0]  = prVdpInfo[0]->u4InputWidth;
+    env->u4InputWidth[1]  = prVdpInfo[1]->u4InputWidth;
+    env->u4InputHeight[0] = prVdpInfo[0]->u4InputHeight;
+    env->u4InputHeight[1] = prVdpInfo[1]->u4InputHeight;
+    return env;
+}
+
+
+//---------------------------------------------------------------------------
+// Public functions
+//---------------------------------------------------------------------------
+#if defined(CC_DYNAMIC_FBMSRM_CONF)
+static UINT32 _srmfbm_conf_value = FBM_MEM_CFG_MT5880_DDR3x2;
+//static UINT32 _srmfbm_conf_value = FBM_MEM_CFG_MT5395_3DTV;
+//static UINT32 _srmfbm_conf_value = FBM_MEM_CFG_MT5395_DDR3x2_EU;
+void SRMFBM_SetConf(UINT32 conf)
+{
+    _srmfbm_conf_value = conf;
+}
+UINT32 SRMFBM_GetConf(void)
+{
+    return _srmfbm_conf_value;
+}
+#else
+UINT32 SRMFBM_GetConf(void)
+{
+    return DRVCUST_OptGet(eFbmMemSize);
+}
+#endif
+
+#if defined(CC_MT5880)
+static VOID _FbmConfigurePool_MT5880_SCPOS_MAIN_3DTV(POOL_LIST_T* prPoolList, POOL_ARRANGE_INFO_T* prPoolArrangeInfo)
+{
+   FBM_POOL_TYPE_T u4AheadType = FBM_POOL_TYPE_SCPOS_MAIN, u4BehindType, u4VdoBehindType = FBM_POOL_TYPE_NS;
+   UNUSED(u4AheadType);
+   UNUSED(u4BehindType);
+   UNUSED(u4VdoBehindType);
+   // arrange root pool ---------------------------------------------------
+   
+   // MPEG | DMX | PIP | MDDI | DSP
+   //MM mode
+  
+   //----- DMX-----
+   prPoolList[FBM_POOL_TYPE_DMX].u4Inherit = FBM_POOL_ROOT;
+   prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize = FBM_ALIGN_MASK((FBM_DMX_H264_SIZE), FBM_DMX_SIZE_ALIGMENT);
+   prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize += 0x500000;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_DMX].ePool1 = FBM_POOL_TYPE_TOTAL;
+   u4AheadType = FBM_POOL_TYPE_DMX;
+
+    //----- MPEG-----
+   prPoolList[FBM_POOL_TYPE_MPEG].u4Inherit = FBM_POOL_ROOT;
+   prPoolList[FBM_POOL_TYPE_MPEG].u4Mode = (FBM_POOL_MODE_MPEG_DBK | FBM_POOL_MODE_SHARE);
+   prPoolArrangeInfo[FBM_POOL_TYPE_MPEG].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_MPEG].ePool1 = u4AheadType;
+   u4AheadType = FBM_POOL_TYPE_MPEG;
+   
+   prPoolList[FBM_POOL_TYPE_FEEDER_MMP].u4Inherit = FBM_POOL_INHERIT;
+   prPoolList[FBM_POOL_TYPE_FEEDER_MMP].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+   prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER_MMP].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER_MMP].ePool1 = u4AheadType;
+
+   
+#ifndef ANDROID  /* for android HW jpeg/png feature, use separated FBM */
+#ifdef CC_FBM_3D_OSD
+	   prPoolList[FBM_POOL_TYPE_JPG_VDP].u4Inherit = FBM_POOL_INHERIT;
+	   prPoolList[FBM_POOL_TYPE_JPG_VDP].u4PoolSize = FBM_JPE_VDP_POOL_SIZE;
+	   prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].eMode = FBM_POOL_ARRANGE_AFTER;
+	   prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].ePool1 = FBM_POOL_TYPE_TOTAL;
+#endif
+#endif
+   // feeder
+   prPoolList[FBM_POOL_TYPE_FEEDER].u4Inherit = FBM_POOL_ROOT;
+   prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+   prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = FBM_POOL_TYPE_MPEG;
+   u4AheadType = FBM_POOL_TYPE_FEEDER;
+   
+   
+      	// PQ_PSCAN
+   prPoolList[FBM_POOL_TYPE_PQ_PSCAN].u4Inherit = FBM_POOL_ROOT;
+   prPoolList[FBM_POOL_TYPE_PQ_PSCAN].u4PoolSize = 0xC00000;
+   prPoolArrangeInfo[FBM_POOL_TYPE_PQ_PSCAN].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_PQ_PSCAN].ePool1 = u4AheadType;
+   u4AheadType = FBM_POOL_TYPE_PQ_PSCAN;
+
+
+#if 0//defined(CC_53XX_FACE_DETECTION)
+	   prPoolList[FBM_POOL_TYPE_FACEDET].u4Inherit = FBM_POOL_ROOT;
+	   prPoolList[FBM_POOL_TYPE_FACEDET].u4PoolSize = FBM_FD_POOL_SIZE;
+	   prPoolArrangeInfo[FBM_POOL_TYPE_FACEDET].eMode = FBM_POOL_ARRANGE_AFTER;
+	   prPoolArrangeInfo[FBM_POOL_TYPE_FACEDET].ePool1 = u4AheadType;
+	   u4AheadType = FBM_POOL_TYPE_FACEDET;
+#endif
+
+   prPoolList[FBM_POOL_TYPE_TDC].u4Inherit = FBM_POOL_INHERIT;
+   prPoolList[FBM_POOL_TYPE_TDC].u4PoolSize = 0x8c0000;
+   prPoolArrangeInfo[FBM_POOL_TYPE_TDC].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_TDC].ePool1 = u4AheadType;
+   u4AheadType = FBM_POOL_TYPE_TDC;
+   
+   	prPoolList[FBM_POOL_TYPE_TDC_DYN].u4Inherit = FBM_POOL_INHERIT;
+   prPoolList[FBM_POOL_TYPE_TDC_DYN].u4PoolSize = 0x8c0000;
+   prPoolArrangeInfo[FBM_POOL_TYPE_TDC_DYN].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_TDC_DYN].ePool1 = u4AheadType;
+   u4AheadType = FBM_POOL_TYPE_PQ_PSCAN;
+   
+
+   prPoolList[FBM_POOL_TYPE_MPEG2].u4Inherit = FBM_POOL_ROOT;
+   prPoolList[FBM_POOL_TYPE_MPEG2].u4PoolSize = 0x1780000;
+   prPoolArrangeInfo[FBM_POOL_TYPE_MPEG2].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_MPEG2].ePool1 = u4AheadType;
+   u4AheadType = FBM_POOL_TYPE_MPEG2;
+
+   //DMX2
+   prPoolList[FBM_POOL_TYPE_DMX2].u4Inherit = FBM_POOL_ROOT;
+   prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize = FBM_ALIGN_MASK((FBM_DMX_H264_SIZE), FBM_DMX_SIZE_ALIGMENT);
+   prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize += 0x500000;
+   prPoolArrangeInfo[FBM_POOL_TYPE_DMX2].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_DMX2].ePool1 = u4AheadType;
+   u4AheadType = FBM_POOL_TYPE_DMX2;
+
+   
+   //feeder2
+   prPoolList[FBM_POOL_TYPE_FEEDER2].u4Inherit = FBM_POOL_ROOT;
+   prPoolList[FBM_POOL_TYPE_FEEDER2].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+   prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER2].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER2].ePool1 = u4AheadType;
+   u4AheadType = FBM_POOL_TYPE_FEEDER2;
+
+   prPoolList[FBM_POOL_TYPE_DRM].u4Inherit = FBM_POOL_ROOT;
+   prPoolList[FBM_POOL_TYPE_DRM].u4PoolSize = FBM_DRM_BUF_SIZE;
+   prPoolArrangeInfo[FBM_POOL_TYPE_DRM].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_DRM].ePool1 = u4AheadType;
+   u4AheadType = FBM_POOL_TYPE_DRM;
+   
+  //SUBTITLE   
+#if defined(CC_FBM_SUPPORT_SUBTITLE)
+
+  prPoolList[FBM_POOL_TYPE_SUBTITLE].u4Inherit = FBM_POOL_ROOT;
+  prPoolList[FBM_POOL_TYPE_SUBTITLE].u4PoolSize = FBM_SUBTITLE_POOL_SIZE;
+  prPoolArrangeInfo[FBM_POOL_TYPE_SUBTITLE].eMode = FBM_POOL_ARRANGE_AFTER;
+  prPoolArrangeInfo[FBM_POOL_TYPE_SUBTITLE].ePool1 = u4AheadType;
+  u4AheadType = FBM_POOL_TYPE_SUBTITLE;
+#endif
+		
+		
+      //----- PQ TV-----
+   prPoolList[FBM_POOL_TYPE_PQ_TV].u4Inherit = FBM_POOL_INHERIT;
+   prPoolList[FBM_POOL_TYPE_PQ_TV].u4PoolSize = 0x3080000;
+   prPoolArrangeInfo[FBM_POOL_TYPE_PQ_TV].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_PQ_TV].ePool1 = FBM_POOL_TYPE_FEEDER;
+   u4AheadType = FBM_POOL_TYPE_PQ_TV;
+
+		//----- PQ MM-----
+   prPoolList[FBM_POOL_TYPE_PQ_MM].u4Inherit = FBM_POOL_INHERIT;
+   prPoolList[FBM_POOL_TYPE_PQ_MM].u4PoolSize = 0x3080000;
+   prPoolArrangeInfo[FBM_POOL_TYPE_PQ_MM].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_PQ_MM].ePool1 = FBM_POOL_TYPE_FEEDER;
+   u4AheadType = FBM_POOL_TYPE_PQ_MM;
+
+       //----- PQ NET-----
+	prPoolList[FBM_POOL_TYPE_PQ_NET].u4Inherit = FBM_POOL_INHERIT;
+	prPoolList[FBM_POOL_TYPE_PQ_NET].u4PoolSize = 0xC00000;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PQ_NET].eMode = FBM_POOL_ARRANGE_AFTER;
+	prPoolArrangeInfo[FBM_POOL_TYPE_PQ_NET].ePool1 = FBM_POOL_TYPE_FEEDER;
+	u4AheadType = FBM_POOL_TYPE_PQ_NET;
+
+	   // tv stagefright
+   prPoolList[FBM_POOL_TYPE_TV_STAGEFRIGHT].u4Inherit = FBM_POOL_INHERIT;
+   prPoolList[FBM_POOL_TYPE_TV_STAGEFRIGHT].u4PoolSize = 0x900000;
+   prPoolArrangeInfo[FBM_POOL_TYPE_TV_STAGEFRIGHT].eMode = FBM_POOL_ARRANGE_AFTER;
+   prPoolArrangeInfo[FBM_POOL_TYPE_TV_STAGEFRIGHT].ePool1 = u4AheadType;
+   u4AheadType = FBM_POOL_TYPE_TV_STAGEFRIGHT;
+	
+   //----- NET SWAP-----
+	prPoolList[FBM_POOL_TYPE_NET_SWAP].u4Inherit = FBM_POOL_INHERIT;
+	prPoolList[FBM_POOL_TYPE_NET_SWAP].u4PoolSize = 0x2380000;
+    prPoolArrangeInfo[FBM_POOL_TYPE_NET_SWAP].eMode = FBM_POOL_ARRANGE_AFTER;
+	prPoolArrangeInfo[FBM_POOL_TYPE_NET_SWAP].ePool1 = FBM_POOL_TYPE_TV_STAGEFRIGHT;
+	u4AheadType = FBM_POOL_TYPE_NET_SWAP;
+	
+
+   u4BehindType = FBM_POOL_TYPE_NS;
+   //-----DSP-----
+   prPoolList[FBM_POOL_TYPE_DSP].u4Inherit = FBM_POOL_ROOT;
+   prPoolArrangeInfo[FBM_POOL_TYPE_DSP].eMode = FBM_POOL_ARRANGE_BEFORE;
+   prPoolArrangeInfo[FBM_POOL_TYPE_DSP].ePool1 = u4BehindType;
+   #if defined(CC_SUPPORT_5_SEC_PTS_PCR_OFFSET)
+   prPoolList[FBM_POOL_TYPE_DSP].u4PoolSize = FBM_DSP_POOL_SIZE + 0x400000;
+   #elif defined(CC_SUPPORT_2_SEC_PTS_PCR_OFFSET)
+   prPoolList[FBM_POOL_TYPE_DSP].u4PoolSize = FBM_DSP_POOL_SIZE + 0x1A0000;
+   #else
+   prPoolList[FBM_POOL_TYPE_DSP].u4PoolSize = FBM_DSP_POOL_SIZE;
+   #endif
+   u4BehindType = FBM_POOL_TYPE_DSP;
+   
+   // DMX_PID
+   
+   prPoolList[FBM_POOL_TYPE_DMXPID].u4Inherit = FBM_POOL_ROOT;
+   prPoolList[FBM_POOL_TYPE_DMXPID].u4PoolSize = 0x400000;
+   prPoolArrangeInfo[FBM_POOL_TYPE_DMXPID].eMode = FBM_POOL_ARRANGE_BEFORE;
+   prPoolArrangeInfo[FBM_POOL_TYPE_DMXPID].ePool1 = u4BehindType;
+   u4BehindType = FBM_POOL_TYPE_DMXPID;
+   
+#ifdef CC_SUPPORT_OD    //if (DRVCUST_OptGet(eFlagSupportOD) == TRUE)
+	   prPoolList[FBM_POOL_TYPE_OD].u4Inherit = FBM_POOL_ROOT;
+	   prPoolList[FBM_POOL_TYPE_OD].u4PoolSize = FBM_OD_POOL_SIZE;
+	   prPoolArrangeInfo[FBM_POOL_TYPE_OD].eMode = FBM_POOL_ARRANGE_BEFORE;
+	   prPoolArrangeInfo[FBM_POOL_TYPE_OD].ePool1 = u4BehindType;
+	   u4BehindType = FBM_POOL_TYPE_OD;
+#endif
+   
+     // pq tool
+   prPoolList[FBM_POOL_TYPE_PQ_TOOL].u4Inherit = FBM_POOL_ROOT;
+   prPoolList[FBM_POOL_TYPE_PQ_TOOL].u4PoolSize = 0x20000;
+   prPoolArrangeInfo[FBM_POOL_TYPE_PQ_TOOL].eMode = FBM_POOL_ARRANGE_BEFORE;
+   prPoolArrangeInfo[FBM_POOL_TYPE_PQ_TOOL].ePool1 = u4BehindType;
+   u4BehindType = FBM_POOL_TYPE_PQ_TOOL;
+   
+   
+      // vbi
+    prPoolList[FBM_POOL_TYPE_VBI].u4Inherit = FBM_POOL_ROOT;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VBI].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VBI].ePool1 = u4BehindType;
+    u4BehindType = FBM_POOL_TYPE_VBI;
+   
+#if defined(CC_SUPPORT_VENC)
+	   prPoolList[FBM_POOL_TYPE_VENC].u4Inherit = FBM_POOL_ROOT;
+	   prPoolList[FBM_POOL_TYPE_VENC].u4PoolSize = FBM_VENC_SIZE;
+	   prPoolArrangeInfo[FBM_POOL_TYPE_VENC].eMode = FBM_POOL_ARRANGE_BEFORE;
+	   prPoolArrangeInfo[FBM_POOL_TYPE_VENC].ePool1 = u4BehindType;
+	   u4BehindType = FBM_POOL_TYPE_VENC;
+#endif
+
+#ifdef ANDROID  /* for android HW jpeg/png feature, use separated FBM */
+#ifdef CC_FBM_3D_OSD
+    	prPoolList[FBM_POOL_TYPE_JPG_VDP].u4Inherit = FBM_POOL_ROOT;
+    	prPoolList[FBM_POOL_TYPE_JPG_VDP].u4PoolSize = 0x400000;
+    	prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].eMode = FBM_POOL_ARRANGE_BEFORE;
+    	prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].ePool1 = u4BehindType;
+    	u4BehindType = FBM_POOL_TYPE_JPG_VDP;
+#endif
+#endif
+
+    prPoolList[FBM_POOL_TYPE_JPEG].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_JPEG].u4PoolSize = 0x800000;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].ePool1 = u4BehindType;
+    u4BehindType = FBM_POOL_TYPE_JPEG;
+
+#if defined(CC_FBM_SUPPORT_PNG)
+    prPoolList[FBM_POOL_TYPE_PNG].u4Inherit = FBM_POOL_ROOT;
+	prPoolList[FBM_POOL_TYPE_PNG].u4PoolSize = FBM_PNG_POOL_SIZE;
+	prPoolArrangeInfo[FBM_POOL_TYPE_PNG].eMode = FBM_POOL_ARRANGE_BEFORE;
+	prPoolArrangeInfo[FBM_POOL_TYPE_PNG].ePool1 = u4BehindType;
+	u4BehindType = FBM_POOL_TYPE_PNG;
+  #endif
+
+   
+   
+   
+   #if defined(CC_FBM_SUPPORT_SWDMX)
+   	 prPoolList[FBM_POOL_TYPE_SWDMX].u4Inherit = FBM_POOL_ROOT;
+   	 prPoolList[FBM_POOL_TYPE_SWDMX].u4PoolSize = 0x20b200;
+   	 prPoolArrangeInfo[FBM_POOL_TYPE_SWDMX].eMode = FBM_POOL_ARRANGE_BEFORE;
+   	 prPoolArrangeInfo[FBM_POOL_TYPE_SWDMX].ePool1 = u4BehindType;
+   	 u4BehindType = FBM_POOL_TYPE_SWDMX;
+   #endif
+   
+#if defined(CC_SUPPORT_VSS)
+		  prPoolList[FBM_POOL_TYPE_VSS].u4Inherit = FBM_POOL_ROOT;
+		  prPoolList[FBM_POOL_TYPE_VSS].u4PoolSize = FBM_VSS_POOL_SIZE;
+		  prPoolArrangeInfo[FBM_POOL_TYPE_VSS].eMode = FBM_POOL_ARRANGE_BEFORE;
+		  prPoolArrangeInfo[FBM_POOL_TYPE_VSS].ePool1 = u4BehindType;
+		  u4BehindType = FBM_POOL_TYPE_VSS;
+#endif
+   
+   u4AheadType = FBM_POOL_TYPE_FEEDER;
+   
+   #ifdef CC_OSD_USE_FBM
+   	// JPEG | OSD1 | OSD2 | OSD3 | OSD4 (Share all except DSP)
+   
+   #ifndef CC_FBM_3D_OSD
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4Width = 1920;
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4Height = 1088;
+   	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD1].eMode = FBM_POOL_ARRANGE_AFTER;
+   	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD1].ePool1 = u4AheadType;
+   
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4Width = 1920;
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4Height = 1088;
+   	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD2].eMode = FBM_POOL_ARRANGE_AFTER;
+   	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD2].ePool1 = FBM_POOL_TYPE_JPEG_OSD1;
+   #if !defined(CC_REMOVE_JPEG_OSD34)
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4Width = 1920;
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4Height = 1088;
+   	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD3].eMode = FBM_POOL_ARRANGE_AFTER;
+   	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD3].ePool1 = FBM_POOL_TYPE_JPEG_OSD2;
+   
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4Width = 1920;
+   	prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4Height = 1088;
+   	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD4].eMode = FBM_POOL_ARRANGE_AFTER;
+   	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD4].ePool1 = FBM_POOL_TYPE_JPEG_OSD3;
+   	
+   	u4AheadType = FBM_POOL_TYPE_JPEG_OSD4;
+   #else
+   	u4AheadType = FBM_POOL_TYPE_JPEG_OSD2;
+   #endif
+   #else
+   	u4AheadType = FBM_POOL_TYPE_FEEDER;
+   #endif
+   	
+   	// JPEG (Between Start & OSD1)
+	//prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].eMode = FBM_POOL_ARRANGE_AFTER;
+	//prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].ePool1 = u4AheadType;
+   	
+   #else
+   	// JPEG + B2R share DMX + MPEG
+   	// JPEG
+   	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].eMode = FBM_POOL_ARRANGE_AFTER;
+   	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].ePool1 = FBM_POOL_TYPE_TOTAL;
+   
+   	// B2R
+   	prPoolList[FBM_POOL_TYPE_B2R].u4PoolSize = FBM_B2R_POOL_SIZE(1920, 1088, 2, 2); // FHD, 422, x2
+   	prPoolList[FBM_POOL_TYPE_B2R].u4Mode = FBM_POOL_MODE_422_FB | FBM_POOL_MODE_SCPOS_2FB;
+   	prPoolArrangeInfo[FBM_POOL_TYPE_B2R].eMode = FBM_POOL_ARRANGE_AFTER;
+   	prPoolArrangeInfo[FBM_POOL_TYPE_B2R].ePool1 = FBM_POOL_TYPE_JPEG;
+   #endif
+
+}
+static VOID  _FbmConfigurePool_MT5880_SCPOS_MAIN(POOL_LIST_T* prPoolList, POOL_ARRANGE_INFO_T* prPoolArrangeInfo)
+{
+    FBM_POOL_TYPE_T u4AheadType = FBM_POOL_TYPE_SCPOS_MAIN, u4BehindType, u4VdoBehindType = FBM_POOL_TYPE_NS;
+    UNUSED(u4AheadType);
+    UNUSED(u4BehindType);
+    UNUSED(u4VdoBehindType);
+    // arrange root pool ---------------------------------------------------
+    // DMX | MPEG | PIP | MDDI | DSP
+
+    //----- DMX-----
+    prPoolList[FBM_POOL_TYPE_DMX].u4Inherit = FBM_POOL_ROOT;
+    if ( (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2 
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1)
+		)
+       )
+    {
+#if defined(CC_TRUSTZONE_SUPPORT)&& defined(CC_SVP_SUPPORT)
+	   prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize = FBM_ALIGN_MASK((0x300000), FBM_DMX_SIZE_ALIGMENT);
+#else
+       prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize = FBM_ALIGN_MASK((FBM_DMX_H264_SIZE), FBM_DMX_SIZE_ALIGMENT);
+#endif
+    }
+    else
+    {
+        prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize = FBM_ALIGN_MASK((FBM_DMX_SIZE), FBM_DMX_SIZE_ALIGMENT);
+    }
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX].ePool1 = FBM_POOL_TYPE_TOTAL;
+
+
+
+    //----- MPEG-----
+    prPoolList[FBM_POOL_TYPE_MPEG].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_MPEG].u4Mode = (FBM_POOL_MODE_MPEG_DBK | FBM_POOL_MODE_SHARE);
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG].ePool1 = FBM_POOL_TYPE_DMX;
+	
+#if !defined(ANDROID)&&!defined(CC_MHP_SUPPORT)  /* for android HW jpeg/png feature, use separated FBM */
+#ifdef CC_FBM_3D_OSD
+	prPoolList[FBM_POOL_TYPE_JPG_VDP].u4Inherit = FBM_POOL_INHERIT;
+    prPoolList[FBM_POOL_TYPE_JPG_VDP].u4PoolSize = FBM_JPE_VDP_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].ePool1 = FBM_POOL_TYPE_TOTAL;
+#endif
+#endif
+    //----- SCPOS MAIN-----
+    prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4Inherit = FBM_POOL_ROOT;
+#if defined(CC_SUPPORT_SCART_OUT_IN_MMP)
+    // allocate 7MB for sub modules, no consider flip/mirror
+    prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2F00000;
+#endif
+
+    if ( (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2)
+       )
+    {
+        //prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x1500000;
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2b00000;
+    }
+	else if(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV)
+	{
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x1E00000;
+    }
+	else if(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1)
+	{
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0xb90000;
+    }
+   else // for ic-verification
+    {
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2400000 + 0x80000; /* add extra 500K to avoid sub buffer overlapped with dsp in SLT environment */
+    }
+
+    prPoolArrangeInfo[FBM_POOL_TYPE_SCPOS_MAIN].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_SCPOS_MAIN].ePool1 = FBM_POOL_TYPE_MPEG;
+    u4AheadType = FBM_POOL_TYPE_SCPOS_MAIN;
+#if defined(CC_IC_VERIFY_FBM_MODE)
+    prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2b00000;
+#endif
+// feeder
+	if(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1)
+	{
+		prPoolList[FBM_POOL_TYPE_FEEDER].u4Inherit = FBM_POOL_ROOT;
+		prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+	
+		prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_AFTER;
+		prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = u4AheadType;
+		u4AheadType = FBM_POOL_TYPE_FEEDER;
+	}
+
+#if defined(CC_SUPPORT_PHOTO_SHARE_IN_FBM)
+    prPoolList[FBM_POOL_TYPE_PHOTO_SHARE].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_PHOTO_SHARE].u4PoolSize = FBM_PHOTO_SHARE_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PHOTO_SHARE].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PHOTO_SHARE].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_PHOTO_SHARE;
+#endif
+
+#if defined(SUPPORT_DIIVA)
+    prPoolList[FBM_POOL_TYPE_DIVA].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_DIVA].u4PoolSize = FBM_SCPOS_8BIT_SIZE_FLIP(1920, 1080, 4);
+    prPoolList[FBM_POOL_TYPE_DIVA].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_DIVA].u4Height = 1080;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DIVA].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DIVA].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_DIVA;
+#endif
+
+
+#if defined(CC_FBM_TWO_FBP_SHARED_WITH_DFB) || defined(CC_VOMX_TV_COEXIST) 
+    if (u4VdoBehindType == FBM_POOL_TYPE_NS)
+    {
+        u4VdoBehindType = FBM_POOL_TYPE_DMX2;
+    }
+    prPoolList[FBM_POOL_TYPE_DMX2].u4Inherit = FBM_POOL_ROOT;
+    if ( (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2) 
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1))
+    {
+#ifdef CC_SUPPORT_5_SEC_PTS_PCR_OFFSET
+        prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize = FBM_ALIGN_MASK((0x1000000), FBM_DMX_SIZE_ALIGMENT);
+#else
+        prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize = FBM_ALIGN_MASK((FBM_DMX_H264_SIZE), FBM_DMX_SIZE_ALIGMENT);
+
+   #if defined(CC_SSIF_SUPPORT)
+	   #if defined(CC_VOMX_TV_COEXIST)
+	   prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize += FBM_SSIF_SIZE;
+	   #else
+	   prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize += FBM_SSIF_SIZE;
+	   #endif
+   #endif
+#if defined(CC_TRUSTZONE_SUPPORT)&& defined(CC_SVP_SUPPORT)
+	   prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize = 0;
+#endif
+#endif
+    }
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX2].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX2].ePool1 = u4AheadType;
+	u4AheadType = FBM_POOL_TYPE_DMX2;
+
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4Inherit = FBM_POOL_ROOT;
+   // prPoolList[FBM_POOL_TYPE_MPEG2].u4Mode = (FBM_POOL_MODE_MPEG_DBK | FBM_POOL_MODE_SHARE);
+    #if defined(CC_VOMX_TV_COEXIST)
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4Mode = (FBM_POOL_MODE_MPEG_DBK);
+    //prPoolList[FBM_POOL_TYPE_MPEG2].u4PoolSize = 0x2F00000; // 23.5Mx2
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4PoolSize = 0x1780000; // Jason rewrite
+     #else
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4Mode = (FBM_POOL_MODE_MPEG_DBK | FBM_POOL_MODE_SHARE);
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4PoolSize = 0x1780000; // Jason rewrite
+    #endif
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG2].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG2].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_MPEG2;
+
+    prPoolList[FBM_POOL_TYPE_FEEDER2].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_FEEDER2].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER2].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER2].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_FEEDER2;
+#endif
+    // pq tool
+    prPoolList[FBM_POOL_TYPE_PQ_TOOL].u4Inherit = FBM_POOL_ROOT;
+	prPoolList[FBM_POOL_TYPE_PQ_TOOL].u4PoolSize = FBM_PQ_TOOL_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PQ_TOOL].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PQ_TOOL].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_PQ_TOOL;
+    if (u4VdoBehindType == FBM_POOL_TYPE_NS)
+    {
+        u4VdoBehindType = FBM_POOL_TYPE_PQ_TOOL;
+    }
+
+#if defined(CC_53XX_FACE_DETECTION)
+    prPoolList[FBM_POOL_TYPE_FACEDET].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_FACEDET].u4PoolSize = FBM_FD_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FACEDET].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FACEDET].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_FACEDET;
+#endif
+
+    // vbi
+    prPoolList[FBM_POOL_TYPE_VBI].u4Inherit = FBM_POOL_ROOT;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VBI].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VBI].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_VBI;
+
+	prPoolList[FBM_POOL_TYPE_DRM].u4Inherit = FBM_POOL_ROOT;
+	prPoolList[FBM_POOL_TYPE_DRM].u4PoolSize = FBM_DRM_BUF_SIZE;
+	prPoolArrangeInfo[FBM_POOL_TYPE_DRM].eMode = FBM_POOL_ARRANGE_AFTER;
+	prPoolArrangeInfo[FBM_POOL_TYPE_DRM].ePool1 = u4AheadType;
+	u4AheadType = FBM_POOL_TYPE_DRM;
+
+#if defined(CC_FBM_SUPPORT_SWDMX)
+    prPoolList[FBM_POOL_TYPE_SWDMX].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_SWDMX].u4PoolSize = FBM_SWDMX_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_SWDMX].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_SWDMX].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_SWDMX;
+#endif
+    #if defined(CC_VOMX_TWO_INST)
+	prPoolList[FBM_POOL_TYPE_DMX3].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_DMX3].u4PoolSize = 0x500000;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX3].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX3].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_DMX3;
+
+    prPoolList[FBM_POOL_TYPE_FEEDER3].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_FEEDER3].u4PoolSize = 0x300000;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER3].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER3].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_FEEDER3;
+#endif
+
+#if defined(CC_FBM_SUPPORT_PNG)
+	if(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2 
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV))
+		{
+		    prPoolList[FBM_POOL_TYPE_PNG].u4Inherit = FBM_POOL_ROOT;
+			prPoolList[FBM_POOL_TYPE_PNG].u4PoolSize = FBM_PNG_POOL_SIZE;
+    		prPoolArrangeInfo[FBM_POOL_TYPE_PNG].eMode = FBM_POOL_ARRANGE_AFTER;
+    		prPoolArrangeInfo[FBM_POOL_TYPE_PNG].ePool1 = u4AheadType;
+    		u4AheadType = FBM_POOL_TYPE_PNG;
+		}
+#endif
+
+#if defined(CC_FBM_SUPPORT_PVR)
+    prPoolList[FBM_POOL_TYPE_PVR].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_PVR].u4PoolSize = FBM_PVR_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PVR].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PVR].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_PVR;
+#endif
+
+#if defined(CC_FBM_SUPPORT_DMXPID)
+		prPoolList[FBM_POOL_TYPE_DMXPID].u4Inherit = FBM_POOL_ROOT;
+		prPoolList[FBM_POOL_TYPE_DMXPID].u4PoolSize = FBM_DMX_PID_BUF_SIZE;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DMXPID].eMode = FBM_POOL_ARRANGE_AFTER;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DMXPID].ePool1 = u4AheadType;
+		u4AheadType = FBM_POOL_TYPE_DMXPID;
+#endif
+#if defined(CC_SUPPORT_VENC)
+    prPoolList[FBM_POOL_TYPE_VENC].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_VENC].u4PoolSize = FBM_VENC_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VENC].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VENC].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_VENC;
+#endif
+#if defined(CC_SUPPORT_VSS)
+		  prPoolList[FBM_POOL_TYPE_VSS].u4Inherit = FBM_POOL_ROOT;
+		  prPoolList[FBM_POOL_TYPE_VSS].u4PoolSize = FBM_VSS_POOL_SIZE;
+		  prPoolArrangeInfo[FBM_POOL_TYPE_VSS].eMode = FBM_POOL_ARRANGE_AFTER;
+		  prPoolArrangeInfo[FBM_POOL_TYPE_VSS].ePool1 = u4AheadType;
+		  u4AheadType = FBM_POOL_TYPE_VSS;
+#endif
+#ifdef CC_SUPPORT_RECORD_AV
+	  prPoolList[FBM_POOL_TYPE_TDC].u4Inherit = FBM_POOL_ROOT;
+	  prPoolList[FBM_POOL_TYPE_TDC].u4PoolSize = FBM_TDCAV_POOL_SIZE;
+	  prPoolArrangeInfo[FBM_POOL_TYPE_TDC].eMode = FBM_POOL_ARRANGE_AFTER;
+	  prPoolArrangeInfo[FBM_POOL_TYPE_TDC].ePool1 = u4AheadType;
+	  u4AheadType = FBM_POOL_TYPE_TDC;
+#endif
+#if defined(ANDROID)||defined(CC_MHP_SUPPORT)  /* for android HW jpeg/png feature, use separated FBM */
+#ifdef CC_FBM_3D_OSD
+		prPoolList[FBM_POOL_TYPE_JPG_VDP].u4Inherit = FBM_POOL_ROOT;
+		prPoolList[FBM_POOL_TYPE_JPG_VDP].u4PoolSize = FBM_JPEVDP_POOL_SIZE;
+		prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].eMode = FBM_POOL_ARRANGE_AFTER;
+		prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].ePool1 = u4AheadType;
+		u4AheadType = FBM_POOL_TYPE_JPG_VDP;
+#endif
+#endif
+
+    u4BehindType = FBM_POOL_TYPE_NS;
+#ifdef CC_SUPPORT_OD    //if (DRVCUST_OptGet(eFlagSupportOD) == TRUE)
+    prPoolList[FBM_POOL_TYPE_OD].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_OD].u4PoolSize = FBM_OD_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_OD].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_OD].ePool1 = u4BehindType;
+    u4BehindType = FBM_POOL_TYPE_OD;
+#endif
+#ifdef ADSP_BIN_SUPPORT
+		prPoolList[FBM_POOL_TYPE_DSP_BIN].u4Inherit = FBM_POOL_ROOT;
+		prPoolList[FBM_POOL_TYPE_DSP_BIN].u4PoolSize = FBM_DSP_BIN_POOL_SIZE;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DSP_BIN].eMode = FBM_POOL_ARRANGE_BEFORE;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DSP_BIN].ePool1 = u4BehindType;
+		u4BehindType = FBM_POOL_TYPE_DSP_BIN;
+#endif		 
+
+    //-----DSP-----
+    prPoolList[FBM_POOL_TYPE_DSP].u4Inherit = FBM_POOL_ROOT;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DSP].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DSP].ePool1 = u4BehindType;
+    #if defined(CC_SUPPORT_5_SEC_PTS_PCR_OFFSET)
+    prPoolList[FBM_POOL_TYPE_DSP].u4PoolSize = FBM_DSP_POOL_SIZE + 0x28000;
+    #endif
+
+	if(!(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1))
+	{
+    // cyj.todo: check if feeder is overwritten
+    // feeder
+    #if defined(CC_VOMX_TV_COEXIST)
+    prPoolList[FBM_POOL_TYPE_FEEDER].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_FEEDER;
+    #else
+    prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = u4VdoBehindType;
+    #endif
+
+	#if defined(CC_FBM_SUPPORT_AMAZON_APP)
+	prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize += FBM_FEEDER_ADD_SIZE;
+    #endif
+    // DIVX use sub path since it's only for MM
+    #if defined(DIVX_PLUS_CER) || defined(CC_NETFLIX_CE3_SUPPORT)
+     prPoolList[FBM_POOL_TYPE_DIVX].u4PoolSize = FBM_DIVX_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DIVX].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DIVX].ePool1 = FBM_POOL_TYPE_FEEDER;
+    #endif
+
+#if defined(CC_FBM_NO_SUBPATH)
+#if defined(CC_DYNAMIC_MPEG_SIZE)
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = FBM_POOL_TYPE_DSP;
+#else
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = FBM_POOL_TYPE_MPEG;
+#endif
+#endif
+	}
+    // handle Image Viewer Pool
+#ifdef CC_OSD_USE_FBM
+    // JPEG | OSD1 | OSD2 | OSD3 | OSD4 (Share all except DSP)
+    //
+    prPoolList[FBM_POOL_TYPE_FEEDER_MMP].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER_MMP].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER_MMP].ePool1 = u4VdoBehindType;
+
+#ifndef CC_FBM_3D_OSD
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD1].eMode = FBM_POOL_ARRANGE_BEFORE;
+	#ifndef CC_MHP_SUPPORT
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD1].ePool1 = FBM_POOL_TYPE_FEEDER_MMP;
+	#else
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD1].ePool1 = FBM_POOL_TYPE_FEEDER2;
+	#endif
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD2].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD2].ePool1 = FBM_POOL_TYPE_JPEG_OSD1;
+#if !defined(CC_REMOVE_JPEG_OSD34)
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD3].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD3].ePool1 = FBM_POOL_TYPE_JPEG_OSD2;
+
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD4].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD4].ePool1 = FBM_POOL_TYPE_JPEG_OSD3;
+	
+    u4AheadType = FBM_POOL_TYPE_JPEG_OSD4;
+#else
+    u4AheadType = FBM_POOL_TYPE_JPEG_OSD2;
+#endif
+#else
+	u4AheadType = FBM_POOL_TYPE_FEEDER_MMP;
+#endif    
+
+    // JPEG (Between Start & OSD1)
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].ePool1 = u4AheadType;
+
+#else
+    // JPEG + B2R share DMX + MPEG
+    // JPEG
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].ePool1 = FBM_POOL_TYPE_TOTAL;
+
+    // B2R
+    prPoolList[FBM_POOL_TYPE_B2R].u4PoolSize = FBM_B2R_POOL_SIZE(1920, 1088, 2, 2); // FHD, 422, x2
+    prPoolList[FBM_POOL_TYPE_B2R].u4Mode = FBM_POOL_MODE_422_FB | FBM_POOL_MODE_SCPOS_2FB;
+    prPoolArrangeInfo[FBM_POOL_TYPE_B2R].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_B2R].ePool1 = FBM_POOL_TYPE_JPEG;
+#endif
+}
+static VOID  _FbmConfigurePool_MT5880_SCPOS_MAIN_DDRx1(POOL_LIST_T* prPoolList, POOL_ARRANGE_INFO_T* prPoolArrangeInfo)
+{
+    FBM_POOL_TYPE_T u4AheadType = FBM_POOL_TYPE_SCPOS_MAIN, u4BehindType, u4VdoBehindType = FBM_POOL_TYPE_NS;
+    UNUSED(u4AheadType);
+    UNUSED(u4BehindType);
+    UNUSED(u4VdoBehindType);
+    // arrange root pool ---------------------------------------------------
+    // DMX | MPEG | PIP | MDDI | DSP
+
+    //----- DMX-----
+    prPoolList[FBM_POOL_TYPE_DMX].u4Inherit = FBM_POOL_ROOT;
+    if ( (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2 
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1)
+		)
+       )
+    {
+#if defined(CC_TRUSTZONE_SUPPORT)&& defined(CC_SVP_SUPPORT)
+   prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize = FBM_ALIGN_MASK((0x300000), FBM_DMX_SIZE_ALIGMENT);
+#else
+   prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize = FBM_ALIGN_MASK((FBM_DMX_H264_SIZE), FBM_DMX_SIZE_ALIGMENT);
+#endif
+
+    }
+    else
+    {
+        prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize = FBM_ALIGN_MASK((FBM_DMX_SIZE), FBM_DMX_SIZE_ALIGMENT);
+    }
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX].ePool1 = FBM_POOL_TYPE_TOTAL;
+    u4AheadType = FBM_POOL_TYPE_DMX;
+	
+#if defined(CC_EDB_FBM_SHARE_MEM)
+	prPoolList[FBM_POOL_TYPE_EDB].u4Inherit = FBM_POOL_ROOT;
+	//prPoolList[FBM_POOL_TYPE_EDB].u4PoolSize = _gu4EDBSize;
+	prPoolList[FBM_POOL_TYPE_EDB].u4PoolSize = FBM_EDB_POOL_SIZE;
+	prPoolArrangeInfo[FBM_POOL_TYPE_EDB].eMode = FBM_POOL_ARRANGE_AFTER;
+	prPoolArrangeInfo[FBM_POOL_TYPE_EDB].ePool1 = u4AheadType;
+	u4AheadType = FBM_POOL_TYPE_EDB;
+#endif
+
+    //----- MPEG-----
+    prPoolList[FBM_POOL_TYPE_MPEG].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_MPEG].u4Mode = (FBM_POOL_MODE_MPEG_DBK | FBM_POOL_MODE_SHARE);
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG].ePool1 = u4AheadType;
+	
+#if (FBM_DIVX_SIZE !=0)&&defined(CC_DRAM_256M)
+    prPoolList[FBM_POOL_TYPE_DRM].u4Inherit = FBM_POOL_INHERIT;
+    prPoolList[FBM_POOL_TYPE_DRM].u4PoolSize = 0x80000;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DRM].eMode = FBM_POOL_ARRANGE_ALLIGN_END;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DRM].ePool1 = FBM_POOL_TYPE_MPEG;
+    u4BehindType = FBM_POOL_TYPE_DRM;
+
+#if defined(CC_FBM_SUPPORT_DMXPID)
+    prPoolList[FBM_POOL_TYPE_DMXPID].u4Inherit = FBM_POOL_INHERIT;
+    prPoolList[FBM_POOL_TYPE_DMXPID].u4PoolSize = 0x280000;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMXPID].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMXPID].ePool1 = u4BehindType;
+    u4BehindType = FBM_POOL_TYPE_DMXPID;
+#endif
+#endif
+
+#ifndef ANDROID  /* for android HW jpeg/png feature, use separated FBM */
+#ifdef CC_FBM_3D_OSD
+	prPoolList[FBM_POOL_TYPE_JPG_VDP].u4Inherit = FBM_POOL_INHERIT;
+    prPoolList[FBM_POOL_TYPE_JPG_VDP].u4PoolSize = FBM_JPE_VDP_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].ePool1 = FBM_POOL_TYPE_TOTAL;
+#endif
+#endif
+    //----- SCPOS MAIN-----
+    prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4Inherit = FBM_POOL_ROOT;
+#if defined(CC_SUPPORT_SCART_OUT_IN_MMP)
+    // allocate 7MB for sub modules, no consider flip/mirror
+    prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2F00000;
+#endif
+
+    if ( (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2)
+       )
+    {
+        //prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x1500000;
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2b00000;
+    }
+	else if(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV)
+	{
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x1E00000;
+    }
+	else if(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1)
+	{
+        //prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2b00000;
+		prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = FBM_SCPOS_MAIN_256M_SIZE;
+    }
+   else // for ic-verification
+    {
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2400000 + 0x80000; /* add extra 500K to avoid sub buffer overlapped with dsp in SLT environment */
+    }
+
+    prPoolArrangeInfo[FBM_POOL_TYPE_SCPOS_MAIN].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_SCPOS_MAIN].ePool1 = FBM_POOL_TYPE_MPEG;
+    u4AheadType = FBM_POOL_TYPE_SCPOS_MAIN;
+#if defined(CC_IC_VERIFY_FBM_MODE)
+    prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2b00000;
+#endif
+// feeder
+#if defined(CC_FBM_NO_SUBPATH)
+	prPoolList[FBM_POOL_TYPE_FEEDER].u4Inherit = FBM_POOL_ROOT;
+	prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+
+	prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_AFTER;
+	prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = u4AheadType;
+	u4AheadType = FBM_POOL_TYPE_FEEDER;
+#else
+    prPoolList[FBM_POOL_TYPE_FEEDER].u4Inherit = FBM_POOL_INHERIT;
+	prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+
+	prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_ALLIGN_END;
+	prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = u4AheadType;
+	u4AheadType = FBM_POOL_TYPE_SCPOS_MAIN;
+
+#endif
+
+#if defined(SUPPORT_DIIVA)
+    prPoolList[FBM_POOL_TYPE_DIVA].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_DIVA].u4PoolSize = FBM_SCPOS_8BIT_SIZE_FLIP(1920, 1080, 4);
+    prPoolList[FBM_POOL_TYPE_DIVA].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_DIVA].u4Height = 1080;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DIVA].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DIVA].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_DIVA;
+#endif
+
+#if defined(CC_FBM_TWO_FBP_SHARED_WITH_DFB) || defined(CC_VOMX_TV_COEXIST) 
+    if (u4VdoBehindType == FBM_POOL_TYPE_NS)
+    {
+        u4VdoBehindType = FBM_POOL_TYPE_DMX2;
+    }
+    prPoolList[FBM_POOL_TYPE_DMX2].u4Inherit = FBM_POOL_ROOT;
+    if ( (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2) 
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1))
+    {
+#ifdef CC_SUPPORT_5_SEC_PTS_PCR_OFFSET
+        prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize = FBM_ALIGN_MASK((0x1000000), FBM_DMX_SIZE_ALIGMENT);
+#else
+        prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize = FBM_ALIGN_MASK((FBM_DMX_H264_SIZE), FBM_DMX_SIZE_ALIGMENT);
+
+   #if defined(CC_SSIF_SUPPORT)
+	   #if defined(CC_VOMX_TV_COEXIST)
+		  prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize += FBM_SSIF_SIZE;
+	   #else
+		  prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize += FBM_SSIF_SIZE;
+	   #endif
+   #endif
+#if defined(CC_TRUSTZONE_SUPPORT)&& defined(CC_SVP_SUPPORT)
+		  prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize = 0;
+#endif
+
+#endif
+    }
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX2].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX2].ePool1 = u4AheadType;
+	u4AheadType = FBM_POOL_TYPE_DMX2;
+
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4Inherit = FBM_POOL_ROOT;
+   // prPoolList[FBM_POOL_TYPE_MPEG2].u4Mode = (FBM_POOL_MODE_MPEG_DBK | FBM_POOL_MODE_SHARE);
+    #if defined(CC_VOMX_TV_COEXIST)
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4Mode = (FBM_POOL_MODE_MPEG_DBK);
+    //prPoolList[FBM_POOL_TYPE_MPEG2].u4PoolSize = 0x2F00000; // 23.5Mx2
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4PoolSize = 0x1780000; // Jason rewrite
+     #else
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4Mode = (FBM_POOL_MODE_MPEG_DBK | FBM_POOL_MODE_SHARE);
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4PoolSize = 0x1780000; // Jason rewrite
+    #endif
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG2].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG2].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_MPEG2;
+
+    prPoolList[FBM_POOL_TYPE_FEEDER2].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_FEEDER2].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER2].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER2].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_FEEDER2;
+#endif
+#if defined(CC_FBM_SUPPORT_PQ_TOOL)
+    // pq tool
+    prPoolList[FBM_POOL_TYPE_PQ_TOOL].u4Inherit = FBM_POOL_ROOT;
+	prPoolList[FBM_POOL_TYPE_PQ_TOOL].u4PoolSize = FBM_PQ_TOOL_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PQ_TOOL].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PQ_TOOL].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_PQ_TOOL;
+#endif
+    if (u4VdoBehindType == FBM_POOL_TYPE_NS)
+    {
+        u4VdoBehindType = FBM_POOL_TYPE_PQ_TOOL;
+    }
+
+#if defined(CC_53XX_FACE_DETECTION)
+    prPoolList[FBM_POOL_TYPE_FACEDET].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_FACEDET].u4PoolSize = FBM_FD_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FACEDET].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FACEDET].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_FACEDET;
+#endif
+
+    // vbi
+    prPoolList[FBM_POOL_TYPE_VBI].u4Inherit = FBM_POOL_ROOT;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VBI].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VBI].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_VBI;
+
+#if defined(CC_FBM_SUPPORT_SWDMX)
+    prPoolList[FBM_POOL_TYPE_SWDMX].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_SWDMX].u4PoolSize = FBM_SWDMX_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_SWDMX].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_SWDMX].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_SWDMX;
+#endif
+
+#if defined(CC_FBM_SUPPORT_PNG)
+    prPoolList[FBM_POOL_TYPE_PNG].u4Inherit = FBM_POOL_ROOT;
+	prPoolList[FBM_POOL_TYPE_PNG].u4PoolSize = FBM_PNG_POOL_SIZE;
+	prPoolArrangeInfo[FBM_POOL_TYPE_PNG].eMode = FBM_POOL_ARRANGE_AFTER;
+	prPoolArrangeInfo[FBM_POOL_TYPE_PNG].ePool1 = u4AheadType;
+	u4AheadType = FBM_POOL_TYPE_PNG;
+#endif
+#if defined(CC_FBM_NO_SUBPATH)&&defined(CC_FBM_3D_OSD)
+    prPoolList[FBM_POOL_TYPE_JPEG].u4Inherit = FBM_POOL_ROOT;
+	prPoolList[FBM_POOL_TYPE_JPEG].u4PoolSize = FBM_PNG_POOL_SIZE;
+	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].eMode = FBM_POOL_ARRANGE_AFTER;
+	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].ePool1 = u4AheadType;
+	u4AheadType = FBM_POOL_TYPE_JPEG;
+
+#endif
+
+#if (FBM_DIVX_SIZE ==0)||!defined(CC_DRAM_256M)
+		prPoolList[FBM_POOL_TYPE_DRM].u4Inherit = FBM_POOL_ROOT;
+		prPoolList[FBM_POOL_TYPE_DRM].u4PoolSize = 0x80000;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DRM].eMode = FBM_POOL_ARRANGE_AFTER;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DRM].ePool1 = u4AheadType;
+		u4AheadType = FBM_POOL_TYPE_DRM;
+		
+#if defined(CC_FBM_SUPPORT_DMXPID)
+		prPoolList[FBM_POOL_TYPE_DMXPID].u4Inherit = FBM_POOL_ROOT;
+		prPoolList[FBM_POOL_TYPE_DMXPID].u4PoolSize = 0x280000;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DMXPID].eMode = FBM_POOL_ARRANGE_AFTER;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DMXPID].ePool1 = u4AheadType;
+		u4AheadType = FBM_POOL_TYPE_DMXPID;
+#endif
+#endif
+
+#if defined(CC_FBM_SUPPORT_PVR)
+		prPoolList[FBM_POOL_TYPE_PVR].u4Inherit = FBM_POOL_ROOT;
+		prPoolList[FBM_POOL_TYPE_PVR].u4PoolSize = FBM_PVR_POOL_SIZE;
+		prPoolArrangeInfo[FBM_POOL_TYPE_PVR].eMode = FBM_POOL_ARRANGE_AFTER;
+		prPoolArrangeInfo[FBM_POOL_TYPE_PVR].ePool1 = u4AheadType;
+		u4AheadType = FBM_POOL_TYPE_PVR;
+#endif
+
+#if defined(CC_FBM_SUPPORT_PNG)
+	if(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2 
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV))
+		{
+		    prPoolList[FBM_POOL_TYPE_PNG].u4Inherit = FBM_POOL_ROOT;
+			prPoolList[FBM_POOL_TYPE_PNG].u4PoolSize = FBM_PNG_POOL_SIZE;
+    		prPoolArrangeInfo[FBM_POOL_TYPE_PNG].eMode = FBM_POOL_ARRANGE_AFTER;
+    		prPoolArrangeInfo[FBM_POOL_TYPE_PNG].ePool1 = u4AheadType;
+    		u4AheadType = FBM_POOL_TYPE_PNG;
+		}
+#endif
+
+#if defined(CC_SUPPORT_VENC)
+    prPoolList[FBM_POOL_TYPE_VENC].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_VENC].u4PoolSize = FBM_VENC_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VENC].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VENC].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_VENC;
+#endif
+#if defined(CC_SUPPORT_VSS)
+		  prPoolList[FBM_POOL_TYPE_VSS].u4Inherit = FBM_POOL_ROOT;
+		  prPoolList[FBM_POOL_TYPE_VSS].u4PoolSize = FBM_VSS_POOL_SIZE;
+		  prPoolArrangeInfo[FBM_POOL_TYPE_VSS].eMode = FBM_POOL_ARRANGE_AFTER;
+		  prPoolArrangeInfo[FBM_POOL_TYPE_VSS].ePool1 = u4AheadType;
+		  u4AheadType = FBM_POOL_TYPE_VSS;
+#endif
+#ifdef CC_SUPPORT_RECORD_AV
+	  prPoolList[FBM_POOL_TYPE_TDC].u4Inherit = FBM_POOL_ROOT;
+	  prPoolList[FBM_POOL_TYPE_TDC].u4PoolSize = FBM_TDCAV_POOL_SIZE;
+	  prPoolArrangeInfo[FBM_POOL_TYPE_TDC].eMode = FBM_POOL_ARRANGE_AFTER;
+	  prPoolArrangeInfo[FBM_POOL_TYPE_TDC].ePool1 = u4AheadType;
+	  u4AheadType = FBM_POOL_TYPE_TDC;
+#endif
+#ifdef ANDROID  /* for android HW jpeg/png feature, use separated FBM */
+#ifdef CC_FBM_3D_OSD
+		prPoolList[FBM_POOL_TYPE_JPG_VDP].u4Inherit = FBM_POOL_ROOT;
+		prPoolList[FBM_POOL_TYPE_JPG_VDP].u4PoolSize = 0x400000;
+		prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].eMode = FBM_POOL_ARRANGE_AFTER;
+		prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].ePool1 = u4AheadType;
+		u4AheadType = FBM_POOL_TYPE_JPG_VDP;
+#endif
+#endif
+
+    u4BehindType = FBM_POOL_TYPE_NS;
+#ifdef CC_SUPPORT_OD    //if (DRVCUST_OptGet(eFlagSupportOD) == TRUE)
+    prPoolList[FBM_POOL_TYPE_OD].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_OD].u4PoolSize = FBM_OD_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_OD].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_OD].ePool1 = u4BehindType;
+    u4BehindType = FBM_POOL_TYPE_OD;
+#endif
+#ifdef ADSP_BIN_SUPPORT
+		prPoolList[FBM_POOL_TYPE_DSP_BIN].u4Inherit = FBM_POOL_ROOT;
+		prPoolList[FBM_POOL_TYPE_DSP_BIN].u4PoolSize = FBM_DSP_BIN_POOL_SIZE;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DSP_BIN].eMode = FBM_POOL_ARRANGE_BEFORE;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DSP_BIN].ePool1 = u4BehindType;
+		u4BehindType = FBM_POOL_TYPE_DSP_BIN;
+#endif		 
+
+    //-----DSP-----
+    prPoolList[FBM_POOL_TYPE_DSP].u4Inherit = FBM_POOL_ROOT;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DSP].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DSP].ePool1 = u4BehindType;
+    #if defined(CC_SUPPORT_5_SEC_PTS_PCR_OFFSET)
+    prPoolList[FBM_POOL_TYPE_DSP].u4PoolSize = FBM_DSP_POOL_SIZE + 0x28000;
+    #endif
+
+	if(!(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1))
+	{
+    // cyj.todo: check if feeder is overwritten
+    // feeder
+    #if defined(CC_VOMX_TV_COEXIST)
+    prPoolList[FBM_POOL_TYPE_FEEDER].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_FEEDER;
+    #else
+    prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = u4VdoBehindType;
+    #endif
+
+    // DIVX use sub path since it's only for MM
+    #if defined(DIVX_PLUS_CER) || defined(CC_NETFLIX_CE3_SUPPORT)
+     prPoolList[FBM_POOL_TYPE_DIVX].u4PoolSize = FBM_DIVX_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DIVX].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DIVX].ePool1 = FBM_POOL_TYPE_FEEDER;
+    #endif
+
+	}
+    // handle Image Viewer Pool
+#ifdef CC_OSD_USE_FBM
+    // JPEG | OSD1 | OSD2 | OSD3 | OSD4 (Share all except DSP)
+    //
+    prPoolList[FBM_POOL_TYPE_FEEDER_MMP].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER_MMP].eMode = FBM_POOL_ARRANGE_ALLIGN_END;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER_MMP].ePool1 = FBM_POOL_TYPE_FEEDER;
+
+#ifndef CC_FBM_3D_OSD
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD1].eMode = FBM_POOL_ARRANGE_BEFORE;
+	#ifndef CC_MHP_SUPPORT
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD1].ePool1 = FBM_POOL_TYPE_FEEDER_MMP;
+	#else
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD1].ePool1 = FBM_POOL_TYPE_FEEDER2;
+	#endif
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD2].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD2].ePool1 = FBM_POOL_TYPE_JPEG_OSD1;
+#if !defined(CC_REMOVE_JPEG_OSD34)
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD3].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD3].ePool1 = FBM_POOL_TYPE_JPEG_OSD2;
+
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD4].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD4].ePool1 = FBM_POOL_TYPE_JPEG_OSD3;
+	
+    u4AheadType = FBM_POOL_TYPE_JPEG_OSD4;
+#else
+    u4AheadType = FBM_POOL_TYPE_JPEG_OSD2;
+#endif
+#else
+	u4AheadType = FBM_POOL_TYPE_FEEDER_MMP;
+#endif    
+
+    // JPEG (Between Start & OSD1)
+    
+#if !defined(CC_FBM_NO_SUBPATH)||!defined(CC_FBM_3D_OSD)
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].ePool1 = u4AheadType;
+#endif
+
+#else
+    // JPEG + B2R share DMX + MPEG
+    // JPEG
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].ePool1 = FBM_POOL_TYPE_TOTAL;
+
+    // B2R
+    prPoolList[FBM_POOL_TYPE_B2R].u4PoolSize = FBM_B2R_POOL_SIZE(1920, 1088, 2, 2); // FHD, 422, x2
+    prPoolList[FBM_POOL_TYPE_B2R].u4Mode = FBM_POOL_MODE_422_FB | FBM_POOL_MODE_SCPOS_2FB;
+    prPoolArrangeInfo[FBM_POOL_TYPE_B2R].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_B2R].ePool1 = FBM_POOL_TYPE_JPEG;
+#endif
+}
+
+#endif
+
+#if defined(CC_MT5398)
+static VOID _FbmConfigurePool_MT5398_MJC_SCPOS_MAIN(POOL_LIST_T* prPoolList, POOL_ARRANGE_INFO_T* prPoolArrangeInfo)
+{
+    FBM_POOL_TYPE_T u4AheadType = FBM_POOL_TYPE_SCPOS_MAIN, u4BehindType, u4VdoBehindType = FBM_POOL_TYPE_NS;
+    UNUSED(u4AheadType);
+    UNUSED(u4BehindType);
+    UNUSED(u4VdoBehindType);
+    // arrange root pool ---------------------------------------------------
+
+    // DMX | MPEG | PIP | MDDI | DSP
+
+    //----- DMX-----
+    prPoolList[FBM_POOL_TYPE_DMX].u4Inherit = FBM_POOL_ROOT;
+    if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV_NOSUB)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV_NOSUB)
+    	|| (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2))      
+    {
+#if defined(CC_TRUSTZONE_SUPPORT)&& defined(CC_SVP_SUPPORT)
+		  prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize = FBM_ALIGN_MASK((0x300000), FBM_DMX_SIZE_ALIGMENT);
+#else
+		  prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize = FBM_ALIGN_MASK((FBM_DMX_H264_SIZE), FBM_DMX_SIZE_ALIGMENT);
+#endif
+    }
+    else
+    {
+        prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize = FBM_ALIGN_MASK((FBM_DMX_SIZE), FBM_DMX_SIZE_ALIGMENT);
+    }
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX].ePool1 = FBM_POOL_TYPE_TOTAL;
+
+
+    //----- MPEG-----
+    prPoolList[FBM_POOL_TYPE_MPEG].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_MPEG].u4Mode = (FBM_POOL_MODE_MPEG_DBK | FBM_POOL_MODE_SHARE);
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG].ePool1 = FBM_POOL_TYPE_DMX;
+	
+#if !defined(ANDROID)&&!defined(CC_MHP_SUPPORT)  /* for android HW jpeg/png feature, use separated FBM */
+#ifdef CC_FBM_3D_OSD
+	prPoolList[FBM_POOL_TYPE_JPG_VDP].u4Inherit = FBM_POOL_INHERIT;
+    prPoolList[FBM_POOL_TYPE_JPG_VDP].u4PoolSize = FBM_JPE_VDP_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].ePool1 = FBM_POOL_TYPE_TOTAL;
+#endif
+#endif
+
+    //----- SCPOS MAIN-----
+    prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4Inherit = FBM_POOL_ROOT;
+#if defined(CC_SUPPORT_SCART_OUT_IN_MMP)
+    // allocate 7MB for sub modules, no consider flip/mirror
+    prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2F00000;
+#endif
+
+    if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV)
+    {
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2600000; //main 1080i 422 0xe9c0000*2+sub 0x880000
+    }
+	else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV_NOSUB)
+    {
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2180000;//main 1080i 422 0xe9c0000*2+sub 0x300000
+    }
+	else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV)
+    {
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x1C00000;//main 1080p 444 0x1360000+sub 0x880000
+    }
+	else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV_NOSUB)
+    {
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x1680000;////main 1080p 444 0x1360000+sub 0x300000
+    }
+    else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2)
+    {
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2b00000+0xaf2000;
+    }
+    else // for ic-verification
+    {
+        prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2400000 + 0x80000; /* add extra 500K to avoid sub buffer overlapped with dsp in SLT environment */
+    }
+
+    prPoolArrangeInfo[FBM_POOL_TYPE_SCPOS_MAIN].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_SCPOS_MAIN].ePool1 = FBM_POOL_TYPE_MPEG;
+    u4AheadType = FBM_POOL_TYPE_SCPOS_MAIN;
+#if defined(CC_IC_VERIFY_FBM_MODE)
+    prPoolList[FBM_POOL_TYPE_SCPOS_MAIN].u4PoolSize = 0x2b00000;
+#endif
+
+#ifdef CC_SUPPORT_RECORD_AV
+	  prPoolList[FBM_POOL_TYPE_TDC].u4Inherit = FBM_POOL_ROOT;
+	  prPoolList[FBM_POOL_TYPE_TDC].u4PoolSize = FBM_TDCAV_POOL_SIZE;
+	  prPoolArrangeInfo[FBM_POOL_TYPE_TDC].eMode = FBM_POOL_ARRANGE_AFTER;
+	  prPoolArrangeInfo[FBM_POOL_TYPE_TDC].ePool1 = u4AheadType;
+	  u4AheadType = FBM_POOL_TYPE_TDC;
+#endif
+
+#if defined(SUPPORT_DIIVA)
+    prPoolList[FBM_POOL_TYPE_DIVA].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_DIVA].u4PoolSize = FBM_SCPOS_8BIT_SIZE_FLIP(1920, 1080, 4);
+    prPoolList[FBM_POOL_TYPE_DIVA].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_DIVA].u4Height = 1080;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DIVA].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DIVA].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_DIVA;
+#endif
+
+
+    #if defined(CC_FBM_TWO_FBP_SHARED_WITH_DFB) || defined(CC_VOMX_TV_COEXIST) 
+    if (u4VdoBehindType == FBM_POOL_TYPE_NS)
+    {
+        u4VdoBehindType = FBM_POOL_TYPE_DMX2;
+    }
+    prPoolList[FBM_POOL_TYPE_DMX2].u4Inherit = FBM_POOL_ROOT;
+    //if ( (SRMFBM_GetConf() == FBM_MEM_CFG_MT5396_DDR3x4)
+    //        || (SRMFBM_GetConf() == FBM_MEM_CFG_MT5396_3DTV)
+    //        || (SRMFBM_GetConf() == FBM_MEM_CFG_MT5396_3DTV_CHA_NOMJC)
+    //   )
+    {
+#ifdef CC_SUPPORT_5_SEC_PTS_PCR_OFFSET
+        prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize = FBM_ALIGN_MASK((0x1000000), FBM_DMX_SIZE_ALIGMENT);
+#else
+        prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize = FBM_ALIGN_MASK((FBM_DMX_H264_SIZE), FBM_DMX_SIZE_ALIGMENT);
+#if defined(CC_SSIF_SUPPORT)
+	   #if defined(CC_VOMX_TV_COEXIST)
+	   prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize += 0x500000;
+	   #else
+	   prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize += 0x500000;
+#endif
+#endif
+#if defined(CC_3D_MM_DMX_ADD_2MB)
+        prPoolList[FBM_POOL_TYPE_DMX].u4PoolSize += 0x100000;
+#endif
+#endif
+#if defined(DLNA_SUPPORT)
+     prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize += FBM_DMX_ADD_BUFFER;
+#endif
+#if defined(CC_TRUSTZONE_SUPPORT)&& defined(CC_SVP_SUPPORT)
+	 prPoolList[FBM_POOL_TYPE_DMX2].u4PoolSize = 0;
+#endif
+
+    }
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX2].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMX2].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_DMX2;
+
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4Inherit = FBM_POOL_ROOT;
+    //prPoolList[FBM_POOL_TYPE_MPEG2].u4Mode = (FBM_POOL_MODE_MPEG_DBK | FBM_POOL_MODE_SHARE);
+    #if defined(CC_VOMX_TV_COEXIST)
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4Mode = (FBM_POOL_MODE_MPEG_DBK);
+    //prPoolList[FBM_POOL_TYPE_MPEG2].u4PoolSize = 0x2F00000; // 23.5Mx2
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4PoolSize = 0x1780000; // Jason rewrite
+    #else
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4Mode = (FBM_POOL_MODE_MPEG_DBK | FBM_POOL_MODE_SHARE);
+    prPoolList[FBM_POOL_TYPE_MPEG2].u4PoolSize = 0x1780000; // Jason rewrite
+    #endif
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG2].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_MPEG2].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_MPEG2;
+
+    prPoolList[FBM_POOL_TYPE_FEEDER2].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_FEEDER2].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER2].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER2].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_FEEDER2;
+#endif
+    // pq tool
+    prPoolList[FBM_POOL_TYPE_PQ_TOOL].u4Inherit = FBM_POOL_ROOT;
+    if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2)
+    {
+        prPoolList[FBM_POOL_TYPE_PQ_TOOL].u4PoolSize = 0x800000; // A2 needs 8MB for OD dump
+    }
+	else
+	{
+	prPoolList[FBM_POOL_TYPE_PQ_TOOL].u4PoolSize = FBM_PQ_TOOL_POOL_SIZE;
+	}
+    prPoolArrangeInfo[FBM_POOL_TYPE_PQ_TOOL].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PQ_TOOL].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_PQ_TOOL;
+    if (u4VdoBehindType == FBM_POOL_TYPE_NS)
+    {
+        u4VdoBehindType = FBM_POOL_TYPE_PQ_TOOL;
+    }
+    //----- MJC-----
+#if defined(CC_FBM_2ND_CHANNEL) // 2 Channel
+    if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV_NOSUB)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV_NOSUB)
+            || (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2))
+    {
+        prPoolList[FBM_POOL_TYPE_MJC_1].u4Inherit = FBM_POOL_INHERIT;
+        prPoolList[FBM_POOL_TYPE_MJC_1].u4PoolSize = FBM_MJC_RSV_POOL_SIZE;
+		LOG(3, "FBMCFG CHANEL B: prPoolList[FBM_POOL_TYPE_MJC_1].u4PoolSize :%d \n", prPoolList[FBM_POOL_TYPE_MJC_1].u4PoolSize);
+		prPoolList[FBM_POOL_TYPE_MJC_1].u4AddrAlign = FBM_MJC_ADDR_ALIGMENT;
+        prPoolList[FBM_POOL_TYPE_MJC_1].u4Mode= FBM_POOL_MODE_MJC_Y10_C10_422_1RDC_3FRM;
+    #if 1
+        prPoolArrangeInfo[FBM_POOL_TYPE_MJC_1].eMode = FBM_POOL_ARRANGE_BEFORE;
+    #else
+        prPoolArrangeInfo[FBM_POOL_TYPE_MJC_1].eMode = FBM_POOL_ARRANGE_AFTER;
+    #endif
+        prPoolArrangeInfo[FBM_POOL_TYPE_MJC_1].ePool1 = FBM_POOL_TYPE_TOTAL2;
+    }    
+#else // 1 channel
+    if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV_NOSUB)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV_NOSUB)
+    	|| (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2)
+       )
+    {
+        prPoolList[FBM_POOL_TYPE_MJC_1].u4Inherit = FBM_POOL_ROOT;
+    	else
+    	{
+            prPoolList[FBM_POOL_TYPE_MJC_1].u4PoolSize = FBM_MJC_RSV_POOL_SIZE;
+    		LOG(3, "FBMCFG CHANEL A: prPoolList[FBM_POOL_TYPE_MJC_1].u4PoolSize :%d \n", prPoolList[FBM_POOL_TYPE_MJC_1].u4PoolSize);
+    		prPoolList[FBM_POOL_TYPE_MJC_1].u4AddrAlign = FBM_MJC_ADDR_ALIGMENT;
+    	}
+        prPoolList[FBM_POOL_TYPE_MJC_1].u4Mode= FBM_POOL_MODE_MJC_Y10_C10_422_1RDC_3FRM;
+        prPoolArrangeInfo[FBM_POOL_TYPE_MJC_1].eMode = FBM_POOL_ARRANGE_AFTER;
+        prPoolArrangeInfo[FBM_POOL_TYPE_MJC_1].ePool1 = u4AheadType;
+        u4AheadType = FBM_POOL_TYPE_MJC_1;
+    }
+#endif
+#if defined(CC_53XX_FACE_DETECTION)
+    prPoolList[FBM_POOL_TYPE_FACEDET].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_FACEDET].u4PoolSize = FBM_FD_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FACEDET].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FACEDET].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_FACEDET;
+#endif
+
+    // vbi
+    prPoolList[FBM_POOL_TYPE_VBI].u4Inherit = FBM_POOL_ROOT;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VBI].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VBI].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_VBI;
+
+#if defined(CC_FBM_SUPPORT_SWDMX)
+    prPoolList[FBM_POOL_TYPE_SWDMX].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_SWDMX].u4PoolSize = FBM_SWDMX_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_SWDMX].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_SWDMX].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_SWDMX;
+#endif
+#if defined(CC_FBM_SUPPORT_PNG)		
+		    prPoolList[FBM_POOL_TYPE_PNG].u4Inherit = FBM_POOL_ROOT;
+			prPoolList[FBM_POOL_TYPE_PNG].u4PoolSize = FBM_PNG_POOL_SIZE;
+    		prPoolArrangeInfo[FBM_POOL_TYPE_PNG].eMode = FBM_POOL_ARRANGE_AFTER;
+    		prPoolArrangeInfo[FBM_POOL_TYPE_PNG].ePool1 = u4AheadType;
+    		u4AheadType = FBM_POOL_TYPE_PNG;
+#endif
+#if defined(CC_SUPPORT_VSS)
+    prPoolList[FBM_POOL_TYPE_VSS].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_VSS].u4PoolSize = FBM_VSS_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VSS].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VSS].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_VSS;
+#endif
+
+#if defined(CC_FBM_SUPPORT_DMXPID)
+    prPoolList[FBM_POOL_TYPE_DMXPID].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_DMXPID].u4PoolSize = FBM_DMX_PID_BUF_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMXPID].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DMXPID].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_DMXPID;
+#endif
+
+#if defined(CC_FBM_SUPPORT_PVR)
+if(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2)
+{
+    prPoolList[FBM_POOL_TYPE_PVR].u4Inherit = FBM_POOL_ROOT;
+    //prPoolList[FBM_POOL_TYPE_PVR].u4PoolSize = FBM_PVR_POOL_SIZE;
+    prPoolList[FBM_POOL_TYPE_PVR].u4PoolSize = 0x680000;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PVR].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PVR].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_PVR;
+
+    // PVR2
+    prPoolList[FBM_POOL_TYPE_PVR2].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_PVR2].u4PoolSize = FBM_PVR2_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PVR2].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PVR2].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_PVR2;
+}
+else
+{
+    prPoolList[FBM_POOL_TYPE_PVR].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_PVR].u4PoolSize = FBM_PVR_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PVR].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PVR].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_PVR;
+}
+#endif
+
+    #if defined(CC_SUPPORT_DUAL_3D_BROADCASTING)
+    prPoolList[FBM_POOL_TYPE_IMGRZ_3D_KR].u4Inherit = FBM_POOL_ROOT;
+	prPoolList[FBM_POOL_TYPE_IMGRZ_3D_KR].u4PoolSize = FBM_IMGRZ_3D_KR_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_IMGRZ_3D_KR].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_IMGRZ_3D_KR].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_IMGRZ_3D_KR;
+    #endif
+
+    if(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2)
+    {
+    	prPoolList[FBM_POOL_TYPE_PNG].u4Inherit = FBM_POOL_ROOT;
+		prPoolList[FBM_POOL_TYPE_PNG].u4PoolSize = FBM_PNG_POOL_SIZE;
+    	prPoolArrangeInfo[FBM_POOL_TYPE_PNG].eMode = FBM_POOL_ARRANGE_AFTER;
+    	prPoolArrangeInfo[FBM_POOL_TYPE_PNG].ePool1 = u4AheadType;
+    	u4AheadType = FBM_POOL_TYPE_PNG;
+
+    	prPoolList[FBM_POOL_TYPE_JPEG].u4Inherit = FBM_POOL_ROOT;
+    	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].eMode = FBM_POOL_ARRANGE_AFTER;
+    	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].ePool1 = u4AheadType;
+    	u4AheadType = FBM_POOL_TYPE_JPEG;
+    }
+    prPoolList[FBM_POOL_TYPE_DRM].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_DRM].u4PoolSize = FBM_DRM_BUF_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DRM].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DRM].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_DRM;
+
+#if defined(CC_SUPPORT_VENC)
+    prPoolList[FBM_POOL_TYPE_VENC].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_VENC].u4PoolSize = FBM_VENC_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VENC].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_VENC].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_VENC;
+#endif
+
+#if defined(CC_FBM_SUPPORT_MUXER)
+    prPoolList[FBM_POOL_TYPE_MUXER].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_MUXER].u4PoolSize = FBM_MUXER_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_MUXER].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_MUXER].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_MUXER;
+#endif
+#if defined(ANDROID)||defined(CC_MHP_SUPPORT)  /* for android HW jpeg/png feature, use separated FBM */
+#ifdef CC_FBM_3D_OSD
+				prPoolList[FBM_POOL_TYPE_JPG_VDP].u4Inherit = FBM_POOL_ROOT;
+				prPoolList[FBM_POOL_TYPE_JPG_VDP].u4PoolSize = FBM_JPEVDP_POOL_SIZE;
+				prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].eMode = FBM_POOL_ARRANGE_AFTER;
+				prPoolArrangeInfo[FBM_POOL_TYPE_JPG_VDP].ePool1 = u4AheadType;
+				u4AheadType = FBM_POOL_TYPE_JPG_VDP;
+#endif
+#endif
+
+    //-----PQ_3DC-----
+    prPoolList[FBM_POOL_TYPE_PQ_3DC].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_PQ_3DC].u4PoolSize = FBM_PQ_3DC_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PQ_3DC].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_PQ_3DC].ePool1 = u4AheadType;
+    u4AheadType = FBM_POOL_TYPE_PQ_3DC;
+
+    u4BehindType = FBM_POOL_TYPE_NS;
+#ifdef CC_SUPPORT_OD    //if (DRVCUST_OptGet(eFlagSupportOD) == TRUE)
+    prPoolList[FBM_POOL_TYPE_OD].u4Inherit = FBM_POOL_ROOT;
+    prPoolList[FBM_POOL_TYPE_OD].u4PoolSize = FBM_OD_POOL_SIZE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_OD].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_OD].ePool1 = u4BehindType;
+    u4BehindType = FBM_POOL_TYPE_OD;
+#endif
+#ifdef ADSP_BIN_SUPPORT
+		prPoolList[FBM_POOL_TYPE_DSP_BIN].u4Inherit = FBM_POOL_ROOT;
+		prPoolList[FBM_POOL_TYPE_DSP_BIN].u4PoolSize = FBM_DSP_BIN_POOL_SIZE;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DSP_BIN].eMode = FBM_POOL_ARRANGE_BEFORE;
+		prPoolArrangeInfo[FBM_POOL_TYPE_DSP_BIN].ePool1 = u4BehindType;
+		u4BehindType = FBM_POOL_TYPE_DSP_BIN;
+#endif		 
+
+    //-----DSP-----
+    prPoolList[FBM_POOL_TYPE_DSP].u4Inherit = FBM_POOL_ROOT;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DSP].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_DSP].ePool1 = u4BehindType;
+#if defined(CC_SUPPORT_5_SEC_PTS_PCR_OFFSET)
+    prPoolList[FBM_POOL_TYPE_DSP].u4PoolSize = FBM_DSP_POOL_SIZE + 0x400000;
+#elif defined(CC_SUPPORT_2_SEC_PTS_PCR_OFFSET)
+    prPoolList[FBM_POOL_TYPE_DSP].u4PoolSize = FBM_DSP_POOL_SIZE + 0x1A0000;
+#else
+    prPoolList[FBM_POOL_TYPE_DSP].u4PoolSize = FBM_DSP_POOL_SIZE;
+#endif
+
+    if(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2)
+    {
+    	prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    	prPoolList[FBM_POOL_TYPE_FEEDER].u4Inherit = FBM_POOL_ROOT;             
+    	prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_AFTER; 
+    	prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = u4AheadType;           
+    	u4AheadType = FBM_POOL_TYPE_FEEDER;
+    }
+    else
+    {
+    	// cyj.todo: check if feeder is overwritten
+    	// feeder
+    	#if defined(CC_VOMX_TV_COEXIST)
+    	prPoolList[FBM_POOL_TYPE_FEEDER].u4Inherit = FBM_POOL_ROOT;
+    	prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    	prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_AFTER;
+    	prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = u4AheadType;
+    	u4AheadType = FBM_POOL_TYPE_FEEDER;
+    	#else
+    	prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+    	prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_ALLIGN_END;
+    	prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = FBM_POOL_TYPE_SCPOS_MAIN;
+    	#endif
+    }
+    #if defined(CC_FBM_SUPPORT_AMAZON_APP)
+		prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize += FBM_FEEDER_ADD_SIZE;
+    #endif
+#if defined(CC_FBM_NO_SUBPATH)
+#if defined(CC_DYNAMIC_MPEG_SIZE)
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = FBM_POOL_TYPE_DSP;
+#else
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER].ePool1 = FBM_POOL_TYPE_MPEG;
+#endif
+#endif
+
+#if 0//defined(CC_FBM_INT_TWO_FBP)
+    prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize = prPoolList[FBM_POOL_TYPE_FEEDER].u4PoolSize * 2;
+#endif
+
+    // handle Image Viewer Pool
+#ifdef CC_OSD_USE_FBM
+    // JPEG | OSD1 | OSD2 | OSD3 | OSD4 (Share all except DSP)
+    //
+    prPoolList[FBM_POOL_TYPE_FEEDER_MMP].u4PoolSize = FBM_FEEDER_POOL_SIZE;
+#if 0//defined(CC_FBM_INT_TWO_FBP)
+    prPoolList[FBM_POOL_TYPE_FEEDER_MMP].u4PoolSize = prPoolList[FBM_POOL_TYPE_FEEDER_MMP].u4PoolSize * 2;
+    #endif
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER_MMP].eMode = FBM_POOL_ARRANGE_ALLIGN_END;
+    prPoolArrangeInfo[FBM_POOL_TYPE_FEEDER_MMP].ePool1 = FBM_POOL_TYPE_SCPOS_MAIN;
+
+#ifndef CC_FBM_3D_OSD
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD1].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD1].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD1].ePool1 = FBM_POOL_TYPE_FEEDER_MMP;
+
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD2].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD2].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD2].ePool1 = FBM_POOL_TYPE_JPEG_OSD1;
+#if !defined(CC_REMOVE_JPEG_OSD34)
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD3].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD3].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD3].ePool1 = FBM_POOL_TYPE_JPEG_OSD2;
+
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4PoolSize = FBM_OSD_POOL_SIZE(1920, 1088, 1, 4); // FHD, 32bpp, x1
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4Width = 1920;
+    prPoolList[FBM_POOL_TYPE_JPEG_OSD4].u4Height = 1088;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD4].eMode = FBM_POOL_ARRANGE_BEFORE;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG_OSD4].ePool1 = FBM_POOL_TYPE_JPEG_OSD3;
+	
+    u4AheadType = FBM_POOL_TYPE_JPEG_OSD4;
+#else
+    u4AheadType = FBM_POOL_TYPE_JPEG_OSD2;
+#endif
+#else
+	u4AheadType = FBM_POOL_TYPE_FEEDER_MMP;
+#endif
+
+    // JPEG (Between Start & OSD1)
+    if(SRMFBM_GetConf() != FBM_MEM_CFG_MT5398_A2)
+    {
+    	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].eMode = FBM_POOL_ARRANGE_BEFORE;
+    	prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].ePool1 = u4AheadType;
+    }
+
+#else
+    // JPEG + B2R share DMX + MPEG
+    // JPEG
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_JPEG].ePool1 = FBM_POOL_TYPE_TOTAL;
+
+    // B2R
+    prPoolList[FBM_POOL_TYPE_B2R].u4PoolSize = FBM_B2R_POOL_SIZE(1920, 1088, 2, 2); // FHD, 422, x2
+    prPoolList[FBM_POOL_TYPE_B2R].u4Mode = FBM_POOL_MODE_422_FB | FBM_POOL_MODE_SCPOS_2FB;
+    prPoolArrangeInfo[FBM_POOL_TYPE_B2R].eMode = FBM_POOL_ARRANGE_AFTER;
+    prPoolArrangeInfo[FBM_POOL_TYPE_B2R].ePool1 = FBM_POOL_TYPE_JPEG;
+#endif
+}
+
+#endif
+
+#if defined(CC_MT5365) || defined(CC_MT5395) || defined(CC_MT5368) || defined(CC_MT5396) || defined(CC_MT5389) || defined(CC_MT5398) || defined(CC_MT5880)
+#define UPDATE_PRPOOL(type, module) \
+    do {\
+        u4NextDramAddr = FBM_ALIGN_MASK(u4NextDramAddr, FBM_ ## module ## _ADDR_ALIGMENT);\
+        prPool = FBM_GetPoolInfo(type);\
+        prPool->u4Addr = u4NextDramAddr;\
+        prPool->u4Size = u4Size;\
+        prPool->u4Width = u4Width;\
+        prPool->u4Height = u4Height;\
+        prPool->u4Mode = u4Mode;\
+        prPool->u4Inherit = FBM_POOL_INHERIT;\
+        u4NextDramAddr = prPool->u4Addr + prPool->u4Size;\
+    } while (0)
+/* consider panel width ? */
+#define UPDATE_POP_WIDTH() \
+    do {\
+        if (env->u1fgPOP)\
+        {\
+            u4Width /= 2;\
+        }\
+    } while (0)
+#define UPDATE_POP_HEIGHT() \
+    do {\
+        if (env->u1fgPOP)\
+        {\
+            u4Height /= 2;\
+        }\
+    } while (0)
+#define UPDATE_HPD_WIDTH() \
+    do {\
+        if (u4VdpId == VDP_1)\
+        {\
+            if ((u4HPDSize != 0) && (u4HPDSize < u4Width))\
+            {\
+                u4Width = u4HPDSize + 20;\
+            }\
+        }\
+    } while (0)
+#define CALCULATE_PROG_DISP_444_SIZE() \
+    do {\
+        u1NRNum = 2;\
+        if (u4FlipModule & FLIP_BY_PSCAN)\
+        {\
+            u1NRNum += 1;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_10BIT)\
+        {\
+            u4Size = FBM_MDDI_BI_NR_10BIT_444_SIZE(u4Width, u4Height, u1NRNum);\
+        }\
+        else\
+        {\
+            u4Size = FBM_MDDI_BI_NR_8BIT_444_SIZE(u4Width, u4Height, u1NRNum);\
+        }\
+    } while (0)
+//mt5365.mt5395 MM>720p need used can't 420->422
+#define CALCULATE_PSCAN_NR_YC_SIZE() \
+    do {\
+        u1NRNum = 2;\
+        if (u4FlipModule & FLIP_BY_PSCAN)\
+        {\
+            u1NRNum += 1;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_10BIT)\
+        {\
+            u4Size = FBM_MDDI_BI_NR_10BIT_SIZE(u4Width, u4Height, u1NRNum);\
+        }\
+        else\
+        {\
+            u4Size = FBM_MDDI_BI_NR_8BIT_SIZE(u4Width, u4Height, u1NRNum);\
+        }\
+    } while (0)
+#define CALCULATE_PSCAN_NR_Yonly_SIZE() \
+    do {\
+        if (u4MddiMode & FBM_POOL_MODE_10BIT)\
+        {\
+            u4Size = FBM_MDDI_BI_NR_Y_Only_10BIT_SIZE(u4Width, u4Height);\
+        }\
+        else\
+        {\
+            u4Size = FBM_MDDI_BI_NR_Y_Only_8BIT_SIZE(u4Width, u4Height);\
+        }\
+    } while (0)
+
+#if defined(CC_MT5396) ||defined(CC_MT5368)||defined(CC_MT5389)||defined(CC_MT5398)||defined(CC_MT5880)
+#define CALCULATE_PROG_DISP_444_SIZE_EX() \
+    do {\
+        u1NRNum = 3;\
+        if (u4FlipModule & FLIP_BY_PSCAN)\
+        {\
+            u1NRNum += 1;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_10BIT)\
+        {\
+            u4Size = FBM_MDDI_BI_NR_10BIT_444_SIZE(u4Width, u4Height, u1NRNum);\
+        }\
+        else\
+        {\
+            u4Size = FBM_MDDI_BI_NR_8BIT_444_SIZE(u4Width, u4Height, u1NRNum);\
+        }\
+    } while (0)
+#define CALCULATE_PSCAN_NR_YC_SIZE_EX() \
+    do {\
+        u1NRNum = 3;\
+        if (u4FlipModule & FLIP_BY_PSCAN)\
+        {\
+            u1NRNum += 1;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_10BIT)\
+        {\
+            if ((env->u1IsMPEG[u4VdpId]) && (env->u4Resolution[u4VdpId] < SRM_VDP_720HD_RESOLUTION))\
+            {\
+                u4Size = FBM_MDDI_BI_NR_10BIT_420_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+            else\
+            {\
+                u4Size = FBM_MDDI_BI_NR_10BIT_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+        }\
+        else\
+        {\
+            if ((env->u1IsMPEG[u4VdpId]) && (env->u4Resolution[u4VdpId] < SRM_VDP_720HD_RESOLUTION))\
+            {\
+                u4Size = FBM_MDDI_BI_NR_8BIT_420_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+            else\
+            {\
+                u4Size = FBM_MDDI_BI_NR_8BIT_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+        }\
+    } while (0)
+
+#if defined(CC_MT5880) || defined(CC_MT5398)
+
+//Before ECO , 5880 can not support 420 progressive mode
+#define CALCULATE_PSCAN_NR_YC_SIZE_BEFORE_ECO() \
+	do {\
+        u1NRNum = 1;\
+        if (u4FlipModule & FLIP_BY_PSCAN)\
+        {\
+            u1NRNum += 1;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_MDDI_DISP)\
+        {\
+            u1NRNum += 1;\
+        }\
+    	if(u4PscanModeEx==E_TDTV_DI_DRAM_DOUBLE)\
+    	{\
+    		u1NRNum *= 2;\
+    	}\
+        else if(u4PscanModeEx==E_TDTV_DI_DRAM_0FB)\
+        {\
+           	u1NRNum = 0;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_10BIT)\
+        {\
+            u4Size = FBM_MDDI_BI_NR_10BIT_SIZE(u4Width, u4Height, u1NRNum);\
+        }\
+        else\
+        {\
+            u4Size = FBM_MDDI_BI_NR_8BIT_SIZE(u4Width, u4Height, u1NRNum);\
+        }\
+    } while (0)
+#else
+
+// new rule: 20110817 by Allen
+#define CALCULATE_PSCAN_NR_YC_SIZE_BEFORE_ECO() \
+    do {\
+    	  if(u4PscanModeEx==E_TDTV_DI_DRAM_DOUBLE)\
+	  {\
+	  	u1NRNum = 2;\
+	  }\
+	  else if(u4PscanModeEx==E_TDTV_DI_DRAM_0FB)\
+	  {\
+	     	u1NRNum = 0;\
+	  }\
+	  else\
+	  {\
+	        u1NRNum = 1;\
+	  }\
+        if (u4FlipModule & FLIP_BY_PSCAN)\
+        {\
+            u1NRNum += 1;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_MDDI_DISP)\
+        {\
+            u1NRNum += 1;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_10BIT)\
+        {\
+            u4Size = FBM_MDDI_BI_NR_10BIT_SIZE(u4Width, u4Height, u1NRNum);\
+        }\
+        else\
+        {\
+            u4Size = FBM_MDDI_BI_NR_8BIT_SIZE(u4Width, u4Height, u1NRNum);\
+        }\
+    } while (0)
+#endif    
+
+#define CALCULATE_PSCAN_NR_YC_SIZE_3D() \
+	do {\
+        u1NRNum = 1;\
+        if (u4FlipModule & FLIP_BY_PSCAN)\
+        {\
+            u1NRNum += 1;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_MDDI_DISP)\
+        {\
+            u1NRNum += 1;\
+        }\
+    	if(u4PscanModeEx==E_TDTV_DI_DRAM_DOUBLE)\
+    	{\
+    		u1NRNum *= 2;\
+    	}\
+        else if(u4PscanModeEx==E_TDTV_DI_DRAM_0FB)\
+        {\
+           	u1NRNum = 0;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_10BIT)\
+        {\
+            if (env->u1IsMPEG[u4VdpId])\
+            {\
+                u4Size = FBM_MDDI_BI_NR_10BIT_420_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+            else\
+            {\
+                u4Size = FBM_MDDI_BI_NR_10BIT_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+        }\
+        else\
+        {\
+            if (env->u1IsMPEG[u4VdpId])\
+            {\
+                u4Size = FBM_MDDI_BI_NR_8BIT_420_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+            else\
+            {\
+                u4Size = FBM_MDDI_BI_NR_8BIT_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+        }\
+    } while (0)
+
+#define CALCULATE_PSCAN_NR_YC_SIZE_3D_BEFORE_ECO() \
+	do {\
+        u1NRNum = 1;\
+        if (u4FlipModule & FLIP_BY_PSCAN)\
+        {\
+            u1NRNum += 1;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_MDDI_DISP)\
+        {\
+            u1NRNum += 1;\
+        }\
+    	if(u4PscanModeEx==E_TDTV_DI_DRAM_DOUBLE)\
+    	{\
+    		u1NRNum *= 2;\
+    	}\
+    	else if(u4PscanModeEx==E_TDTV_DI_DRAM_0FB)\
+    	{\
+    	   	u1NRNum = 0;\
+    	}\
+    	else if (u4MddiMode & FBM_POOL_MODE_MDDI_DISP)\
+        {\
+            u1NRNum += 1;\
+        }\
+        if (u4MddiMode & FBM_POOL_MODE_10BIT)\
+        {\
+            if (env->u1IsMPEG[u4VdpId])\
+            {\
+                u4Size = FBM_MDDI_BI_NR_10BIT_420_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+            else\
+            {\
+                u4Size = FBM_MDDI_BI_NR_10BIT_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+        }\
+        else\
+        {\
+            if (env->u1IsMPEG[u4VdpId])\
+            {\
+                u4Size = FBM_MDDI_BI_NR_8BIT_420_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+            else\
+            {\
+                u4Size = FBM_MDDI_BI_NR_8BIT_SIZE(u4Width, u4Height, u1NRNum);\
+            }\
+        }\
+    } while (0)
+
+#endif
+
+void CALCULATE_PSCAN_YC_NUM(UINT32 u4VdpId, UINT32 u4MddiMode, UINT32 u4flip, UINT8* u1Ynum, UINT8* u1Cnum)
+{
+    if (u4MddiMode & FBM_POOL_MODE_MDDI_FULL)
+    {
+        *u1Ynum = 4;
+        *u1Cnum = 4;
+    }
+    else if (u4MddiMode & FBM_POOL_MODE_MDDI_CBOB)
+    {
+        *u1Ynum = 4;
+        *u1Cnum = 3;
+    }
+    else /* if (u4MddiMode & FBM_POOL_MODE_MDDI_BOB) */
+    {
+        *u1Ynum = 2;
+        *u1Cnum = 2;
+    }
+    if ((u4MddiMode & FBM_POOL_MODE_MDDI_DISP))
+    {
+        *u1Ynum += 1;
+        *u1Cnum += 1;
+        if (u4flip & FLIP_BY_PSCAN)
+        {
+            *u1Ynum += 1;
+            *u1Cnum += 1;
+        }
+    }
+}
+#define CALCULATE_SCALER_444_PARAMETERS() \
+    do {\
+        u1ScalerNum = 3;\
+        if (u4FlipModule & FLIP_BY_SCALER)\
+        {\
+            u1ScalerNum += 1;\
+        }\
+        if (u4FlipModule & FLIP_BY_3D)\
+        {\
+            u1ScalerNum += 3;\
+        }\
+        u4Size = FBM_SCPOS_444_3FB_POOL_SIZE_FLIP(u4Width, u4Height, u1ScalerNum);\
+        u4Mode = FBM_POOL_MODE_8BIT | FBM_POOL_MODE_444_FB | FBM_POOL_MODE_SCPOS_3FB;\
+    } while (0)
+#define CALCULATE_SCALER_422_PARAMETERS() \
+    do {\
+        u1ScalerNum = 3;\
+        if (u4FlipModule & FLIP_BY_SCALER)\
+        {\
+            u1ScalerNum += 1;\
+        }\
+        if (u4FlipModule & FLIP_BY_3D)\
+        {\
+            u1ScalerNum += 3;\
+        }\
+        if (u4ScalerMode & FBM_POOL_MODE_10BIT)\
+        {\
+            u4Size = FBM_SCPOS_10BIT_SIZE_FLIP(u4Width, u4Height, u1ScalerNum);\
+        }\
+        else\
+        {\
+            u4Size = FBM_SCPOS_8BIT_SIZE_FLIP(u4Width, u4Height, u1ScalerNum);\
+        }\
+        u4Mode = FBM_POOL_MODE_422_FB | FBM_POOL_MODE_SCPOS_3FB;\
+        if (u4ScalerMode & FBM_POOL_MODE_10BIT)\
+        {\
+            u4Mode |= FBM_POOL_MODE_10BIT;\
+        }\
+        else\
+        {\
+            u4Mode |= FBM_POOL_MODE_8BIT;\
+        }\
+    } while (0)
+#define UPDATE_EPG_WxH(u4VdpId, width, height)\
+    do {\
+        if (u4VdpId == VDP_1)\
+        {\
+            if (SRM_IsEpgMode())\
+            {\
+                u4Width = width;\
+                u4Height = height;\
+            }\
+        }\
+    } while (0)
+#define UPDATE_WxH_BY_RESOLUTION(u4VdpId) \
+    do {\
+	   if (env->u4Resolution[u4VdpId] == 0)\
+        {\
+            u4Width = 740;\
+            u4Height = 596;\
+        }\
+         else\
+          if (env->u4Resolution[u4VdpId] <= SRM_VDP_SD_RESOLUTION)\
+        {\
+            u4Width = env->u4InputWidth[u4VdpId] + 20;\
+            u4Height = env->u4InputHeight[u4VdpId] + 20;\
+        }\
+        else\
+          if (env->u4Resolution[u4VdpId] <= SRM_VDP_720HD_RESOLUTION)\
+        {\
+            u4Width = env->u4InputWidth[u4VdpId] + 20;\
+            UPDATE_POP_WIDTH();\
+            u4Height = env->u4InputHeight[u4VdpId] + 20;\
+        }\
+        else\
+       {\
+            u4Width = env->u4InputWidth[u4VdpId] + 20;\
+            UPDATE_HPD_WIDTH();\
+            UPDATE_POP_WIDTH();\
+            u4Height = env->u4InputHeight[u4VdpId] + 20;\
+        }\
+    } while (0)
+#define UPDATE_TDC_POOL()\
+    do {\
+        if (env->u1mode[u4VdpId] == FBM_MODE_576I)\
+        {\
+            u4Width = 780;\
+            u4Height = 578;\
+            u4Mode = FBM_POOL_MODE_10BIT;\
+            u4Size = FBM_TDC_POOL_SIZE;\
+            UPDATE_PRPOOL(FBM_POOL_TYPE_TDC_DYN, TDC);\
+        }\
+    } while (0)
+
+#define UPDATE_TDC_POOL_BY_MODE()\
+    do {\
+        if (env->u1mode[u4VdpId] == FBM_MODE_576I)\
+        {\
+            u4Width = 780;\
+            u4Height = 578;\
+            u4Mode = FBM_POOL_MODE_10BIT;\
+            if(u4TDCMode&FBM_POOL_MODE_TDC_GAME)\
+            	u4Size = FBM_TDC_GAME_SIZE;\
+            else\
+            	u4Size = FBM_TDC_POOL_SIZE;\
+            UPDATE_PRPOOL(FBM_POOL_TYPE_TDC_DYN, TDC);\
+        }\
+    } while (0)
+
+#define CHECK_PSCAN_SIZE_TO_0()\
+    do {\
+        if (((u4MddiMode & FBM_POOL_MODE_MDDI_DISP) == 0) && (u4MddiMode & FBM_POOL_MODE_MDDI_BOB) && (u4MddiMode & FBM_POOL_MODE_MDDI_NR_OFF))\
+        {\
+            u4Size = 0;\
+        }\
+    } while (0)
+#define CHECK_SCALER_SIZE_TO_0()\
+    do {\
+        if ((u4ScalerMode & FBM_POOL_MODE_SCPOS_PSCAN_DISP) || (u4ScalerMode & FBM_POOL_MODE_SCPOS_DISP)|| (u4ScalerMode & FBM_POOL_MODE_SCPOS_LINESYNC_DISP))\
+        {\
+            u4Size = 0;\
+        }\
+    } while (0)
+
+static UINT32 FBM_FlipModule[VDP_NS];
+
+UINT32 u4QueryFlipModule(UINT32 u4VdpId)
+{
+    return FBM_FlipModule[u4VdpId];
+}
+
+UINT32 u4DecideFlipModule(UINT32 u4VdpId, UINT32 u4ScalerMode, UINT8 u1IsMPEG, FBM_AUTO_INC_ENV_T* env)
+{
+    UINT32 u4FlipModule = FLIP_NONE;
+    UINT8 ucTVEEnable;
+
+    TVE_GetEnable(TVE_1, &ucTVEEnable);
+
+#if defined(CC_MT5365) || defined(CC_MT5368) || defined(CC_MT5389) || defined(CC_MT5880) || defined(CC_MT5860)
+    // main: dtv, sub: tve : (FLIP_BY_B2R, FLIP_BY_SCALER)
+    // main: other, sub: dtv : (FLIP_BY_xxx, FLIP_BY_SCALER)
+    // main: hdmi, sub: tve : (FLIP_BY_xxx, FLIP_NONE)
+    // main: other, sub: hdmi : (FLIP_BY_xxx, FLIP_BY_SCALER)
+    if((u1IsMPEG) && (u4VdpId == VDP_1))
+    {
+        u4FlipModule = FLIP_BY_B2R;
+    }
+    else if (u4VdpId == VDP_2)
+    {
+        u4FlipModule = FLIP_BY_SCALER;
+    }
+    else  // main: other
+    {
+        if (u4ScalerMode & FBM_POOL_MODE_SCPOS_FULL)
+        {
+            u4FlipModule = FLIP_BY_SCALER;
+        }
+        else if ( (u4ScalerMode & FBM_POOL_MODE_SCPOS_PSCAN_DISP)||(u4ScalerMode & FBM_POOL_MODE_SCPOS_LINESYNC_DISP))
+        {
+            u4FlipModule = FLIP_BY_PSCAN;
+        }
+    }
+    if((ucTVEEnable)&&(!env->u1IsMPEG[VDP_1])&&(!env->u1IsMPEG[VDP_2])&&(u4VdpId==VDP_2))
+    {
+        u4FlipModule = FLIP_NONE;
+    }
+
+#elif defined(CC_MT5395) || defined(CC_MT5396) || defined(CC_MT5398)
+        u4FlipModule = FLIP_BY_MJC;
+#endif
+
+#if !defined(CC_FLIP_MIRROR_SUPPORT)
+    u4FlipModule = FLIP_NONE;
+#endif
+
+    FBM_FlipModule[u4VdpId] = u4FlipModule;
+
+    return u4FlipModule;
+}
+
+UINT32 u4SizeOfCurrent[2];
+
+void ExpandFBM4SinglexPOP(UINT32 u4VdpId, FBM_AUTO_INC_ENV_T* env, UINT32 u4BaseDramAddr)
+{
+    UINT32 u4NextDramAddr, u4MddiMode, u4ScalerMode, u4TDCMode,u4Width, u4Height, u4Size, u4Mode, u4HPDSize, u4DisplayH;
+    UINT8 u1Ynum, u1Cnum, u1ScalerNum, u1NRNum;
+    UINT32 u4FlipModule;
+    FBM_POOL_T* prPool;
+    #if defined(CC_MT5396) || defined(CC_MT5368) || defined(CC_MT5389) || defined(CC_MT5398) || defined(CC_MT5880)
+    UINT32 u4PscanModeEx=u4DrvTDTVForceDIDramModeQueryEx(u4VdpId);
+    #endif
+    #if defined(CC_MT5880)
+    UINT32 u4DIMode = u4DrvTDTVDIModeQuery();
+    E_TD_IN eDIIn = TD_MIB_IN(u4DIMode);
+    #endif
+    UINT8 fgIs2X = TD_DQC_2X(u4DrvTDTVDQCModeQuery());
+    static UINT32 u4PreMainScalerWidth = 720, u4PreMainScalerHeight = 576;
+
+    u4NextDramAddr = u4BaseDramAddr;
+    u4MddiMode = SRM_GetMddiMode(u4VdpId);
+    u4ScalerMode = SRM_GetScposMode(u4VdpId);
+    u4TDCMode = SRM_GetTDCMode(u4VdpId);
+    u4HPDSize = SRM_GetScposHPDSize(u4VdpId);
+    u4DisplayH = PANEL_GetPanelHeight();
+
+    if(VDP_1==u4VdpId && fgIs2X)
+    {
+        u4HPDSize =1920;
+    }
+
+    u4FlipModule = u4DecideFlipModule(u4VdpId, u4ScalerMode, env->u1IsMPEG[u4VdpId], env);
+
+    // reset value
+    {
+        u4Size = 0;
+        u4Width = 720;
+        u4Height = 576;
+        u4Mode = 0xA5A5A5A5;
+        if (u4VdpId == VDP_1)
+        {
+            UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_MAIN, MDDI);
+            UPDATE_PRPOOL(FBM_POOL_TYPE_SCPOS_DYN_MAIN, SCPOS);
+        }
+        else
+        {
+            UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_SUB, MDDI);
+            UPDATE_PRPOOL(FBM_POOL_TYPE_SCPOS_DYN_SUB, SCPOS);
+        }
+        if (env->u1IsTDC[u4VdpId])
+        {
+            UPDATE_PRPOOL(FBM_POOL_TYPE_TDC_DYN, TDC);
+        }
+    }
+
+    if ((env->u1mode[u4VdpId] == FBM_MODE_1080I) || (env->u1mode[u4VdpId] == FBM_MODE_576I))
+    {
+        
+        UPDATE_WxH_BY_RESOLUTION(u4VdpId);
+
+        if(u4VdpId ==VDP_1 )
+        {
+            if (SRM_IsScanMode(VDP_1))
+            {
+                u4Width = 740;
+                u4Height = 596;
+            }
+       
+            //For ATV PVR, it's to keep Scaler dram address.
+            if (fgFBMFixedScalerDram)
+            {
+                u4Width  = u4PreMainScalerWidth;
+                u4Height = u4PreMainScalerHeight;
+            }
+            else
+            {
+                u4PreMainScalerWidth  = u4Width;
+                u4PreMainScalerHeight = u4Height;   
+            }
+        }
+
+        // scaler
+        if (u4VdpId == VDP_2)
+        {
+            #if defined(CC_MT5398)  || defined(CC_MT5880)
+            if (env->u1mode[u4VdpId] == FBM_MODE_1080I)
+            {
+            	  u4Width = 960;
+            	  u4Height = 540;
+            }
+            else
+            {
+            u4Width = 720;
+            u4Height = 756;
+            }           
+            #else
+            u4Width = 720;
+            u4Height = 756;
+            #endif
+        }
+        else
+        {
+            if (env->u1mode[u4VdpId] == FBM_MODE_576I)
+            {
+#if defined(CC_SUPPORT_OVERSAMPLE_1440_ENABLE)
+                u4Width = 1440;
+                UPDATE_POP_WIDTH();
+#endif
+            }
+            else // 1080i
+            {
+                if ((u4ScalerMode & FBM_POOL_MODE_SCPOS_PSCAN_DISP) || (u4ScalerMode & FBM_POOL_MODE_SCPOS_DISP)|| (u4ScalerMode & FBM_POOL_MODE_SCPOS_LINESYNC_DISP))
+                {
+                    u4Width = 0;
+                    u4Height = 0;
+                }
+                else
+                {
+                    #if defined(CC_MT5398)  || defined(CC_MT5880)
+                    if (env->u1fgPOP)
+                    {
+                    		// preserve max POP main output window size
+                    		if ((u4HPDSize != 0) && (u4HPDSize < 1440))
+                    			u4Width = u4HPDSize;
+                    		else
+                    			u4Width = 1440;
+                    		u4Height = 900; 
+                    }
+                    else
+                    {
+                    		u4Width = 1920;
+                    		UPDATE_HPD_WIDTH();            
+                    		u4Height = 1080;          
+                    }
+                    #else
+                    u4Width = 1920;
+                    UPDATE_HPD_WIDTH();
+                    UPDATE_POP_WIDTH();
+                    u4Height = 1080;
+                    #endif
+
+                    UPDATE_EPG_WxH(u4VdpId, 720, 1082);
+                }
+            }
+#if defined(CC_IC_VERIFY_FBM_MODE)
+            u4Width = 1920;
+            u4Height = 1080;
+#endif
+            UPDATE_EPG_WxH(u4VdpId, 740, 596);
+        }
+        //if (u4DrvTDTVForceDramModeQuery() == E_TDTV_DRAM_6FB)
+        if (u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_6FB)
+        {
+            u4FlipModule = FLIP_BY_3D;
+        }
+        #if defined(SUPPORT_3D_OVSN_BY_SCL)
+        else if(u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_3FB)
+        {
+            u4Width = 1920;
+            u4Height = 1080;
+            LOG(5,"**5396 FBM DRAM_3FB**\n");
+        }
+        #endif
+         #if defined(CC_MT5880)
+               if((SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2)
+                ||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV_SHRINK))
+         #endif           
+        {
+            //if (u4DrvTDTVForceDramModeQuery() == E_TDTV_DRAM_6FB)
+            if (u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_6FB)
+            {
+                u4FlipModule = FLIP_BY_3D;
+               LOG(5,"**5368/89 FBM DRAM_6FB**\n");
+            }
+            //else if(u4DrvTDTVForceDramModeQuery() == E_TDTV_DRAM_3FB)
+            else if(u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_3FB)
+            {
+                u4Height = 1080;
+                LOG(5,"**5368/89 FBM DRAM_3FB**\n");
+            }
+        }
+        CALCULATE_SCALER_422_PARAMETERS();
+        CHECK_SCALER_SIZE_TO_0();
+
+        if (u4VdpId == VDP_1)
+        {
+            UPDATE_PRPOOL(FBM_POOL_TYPE_SCPOS_DYN_MAIN, SCPOS);
+        }
+        else
+        {
+            UPDATE_PRPOOL(FBM_POOL_TYPE_SCPOS_DYN_SUB, SCPOS);
+        }
+
+        // pscan
+        if (env->u1mode[u4VdpId] == FBM_MODE_1080I)
+        {
+            //u4Width = 2048;
+            u4Width = env->u4InputWidth[u4VdpId] + 20;
+            UPDATE_HPD_WIDTH();
+            UPDATE_POP_WIDTH();
+            #if defined(CC_MT5880)
+            if((E_TD_IN_FS_I==eDIIn)||(E_TD_IN_FS_P==eDIIn))
+            { 
+                u4Width = MIN(960,u4Width);  
+            }
+            #endif
+            u4Height = env->u4InputHeight[u4VdpId] + 20;
+
+            UPDATE_EPG_WxH(u4VdpId, 720, 1082);
+        }
+        else // if (env->u1mode[u4VdpId] == FBM_MODE_576I)
+        {
+#if defined(CC_SUPPORT_OVERSAMPLE_1440_ENABLE)
+            if (u4VdpId == VDP_1)
+            {
+                u4Width = 1440;
+                UPDATE_POP_WIDTH();
+            }
+#endif
+        }
+#if defined(CC_MT5398)  || defined(CC_MT5880)
+        if(E_TD_OUT_NATIVE != TD_MIB_OUT(u4DrvTDTVDIModeQuery()))
+        {
+            u4Width = (u4Width/2+255)/256*256*2;            
+        }
+#endif
+#if defined(CC_MT5880)
+        if(E_TD_OUT_3D_LI == TD_MIB_OUT(u4DrvTDTVDIModeQuery()))
+        {
+            if((E_TD_IN_SBS_I == eDIIn) || (E_TD_IN_FS_I == eDIIn))
+            {//According to Predown rule, it will be predown to half of panel height in these conditions.
+                u4Height = MIN(u4DisplayH/2 , u4Height); 
+            }
+            if((E_TD_IN_TB_I == eDIIn) || (E_TD_IN_LI_I == eDIIn))
+            {
+                u4Height = MIN(u4DisplayH , u4Height);
+            }
+        }
+#endif
+
+        #if defined(CC_MT5396) ||defined(CC_MT5368) ||defined(CC_MT5389)
+        if(u4PscanModeEx==E_TDTV_DI_DRAM_DOUBLE)
+        {
+        	u1Ynum=9;
+        	u1Cnum=9;
+        }
+        else if(u4PscanModeEx==E_TDTV_DI_DRAM_0FB)
+        {
+        	u1Ynum=0;
+        	u1Cnum=0;
+        }
+        else // E_TDTV_DI_DRAM_NORMAL
+        {
+            CALCULATE_PSCAN_YC_NUM(u4VdpId, u4MddiMode, u4FlipModule, &u1Ynum, &u1Cnum);
+        }
+        
+        #else //defined(CC_MT5396) ||defined(CC_MT5368) ||defined(CC_MT5389)
+        CALCULATE_PSCAN_YC_NUM(u4VdpId, u4MddiMode, u4FlipModule, &u1Ynum, &u1Cnum);
+
+        if(u4PscanModeEx==E_TDTV_DI_DRAM_DOUBLE)
+        {
+        	u1Ynum*=2;
+        	u1Cnum*=2;
+        }
+        else if(u4PscanModeEx==E_TDTV_DI_DRAM_0FB)
+        {
+        	u1Ynum=0;
+        	u1Cnum=0;
+        }
+
+        LOG(4,"==FBM MDDI NUM %d x %d %d :%d==\n",u4Width,u4Height,u1Ynum,u1Cnum);
+        
+        #endif //defined(CC_MT5396) ||defined(CC_MT5368) ||defined(CC_MT5389)
+
+        if (u4MddiMode & FBM_POOL_MODE_10BIT)
+        {
+            if ((env->u1IsMPEG[u4VdpId])
+#if defined(CC_MT5396) || defined(CC_MT5368)
+                //MT5396 / 68 Can NOT support 420 before ECO
+                &&!((BSP_GetIcVersion() == IC_VER_5396_AA) ||(BSP_GetIcVersion() == IC_VER_5368_AA))
+#endif
+                )
+            {
+                u4Size = FBM_ALIGN_MASK(FBM_MDDI_BI_10BIT_420_SIZE(u4Width, u4Height, u1Ynum, u1Cnum), FBM_MDDI_SIZE_ALIGMENT);
+            }
+            else
+            {
+                u4Size = FBM_ALIGN_MASK(FBM_MDDI_BI_10BIT_422_SIZE(u4Width, u4Height, u1Ynum, u1Cnum), FBM_MDDI_SIZE_ALIGMENT);
+            }
+        }
+        else // if (u4MddiMode & FBM_POOL_MODE_8BIT)
+        {
+            if ((env->u1IsMPEG[u4VdpId])
+#if defined(CC_MT5396) || defined(CC_MT5368)
+                //MT5396 / 68 Can NOT support 420 before ECO
+                &&!((BSP_GetIcVersion() == IC_VER_5396_AA) ||(BSP_GetIcVersion() == IC_VER_5368_AA))
+#endif
+                )
+            {
+                u4Size = FBM_ALIGN_MASK(FBM_MDDI_BI_8BIT_420_SIZE(u4Width, u4Height, u1Ynum, u1Cnum), FBM_MDDI_SIZE_ALIGMENT);
+            }
+            else
+            {
+                u4Size = FBM_ALIGN_MASK(FBM_MDDI_BI_8BIT_422_SIZE(u4Width, u4Height, u1Ynum, u1Cnum), FBM_MDDI_SIZE_ALIGMENT);
+            }
+        }
+#if defined(CC_SUPPORT_OVERSAMPLE_1440_ENABLE)
+        if ((u4VdpId == VDP_1) && (env->u1mode[u4VdpId] == FBM_MODE_576I))
+        {
+            if (u4MddiMode & FBM_POOL_MODE_10BIT)
+            {
+                u4Size = FBM_ALIGN_MASK(FBM_MDDI_1440_BI_10BIT_422_SIZE(u4Width, u4Height, u1Ynum, u1Cnum), FBM_MDDI_SIZE_ALIGMENT);
+            }
+            else // if (u4MddiMode & FBM_POOL_MODE_8BIT)
+            {
+                u4Size = FBM_ALIGN_MASK(FBM_MDDI_1440_BI_8BIT_422_SIZE(u4Width, u4Height, u1Ynum, u1Cnum), FBM_MDDI_SIZE_ALIGMENT);
+            }
+        }
+#endif
+        u4Mode = 0;
+
+        CHECK_PSCAN_SIZE_TO_0();
+
+        if(fgFBM_PscanTest)
+        {
+            u4Width = 1920;
+            u4Height = 1080;
+            u4Size = FBM_ALIGN_MASK(FBM_MDDI_BI_10BIT_422_SIZE(u4Width, u4Height, 10, 10), FBM_MDDI_SIZE_ALIGMENT);
+            //Printf("---------Allen Test: size: 0x%x----------\n",u4Size);
+        }
+
+        if (u4VdpId == VDP_1)
+        {
+            UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_MAIN, MDDI);
+        }
+        else
+        {
+            UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_SUB, MDDI);
+        }
+
+        
+	/* move TDC config pool at the beginning */
+        // tdc
+        
+        if (env->u1IsTDC[u4VdpId])
+        {
+#if defined(CC_MT5396) ||defined(CC_MT5368) ||defined(CC_MT5389)
+            UPDATE_TDC_POOL_BY_MODE();
+#else
+#ifndef CC_SUPPORT_RECORD_AV
+            UPDATE_TDC_POOL();
+#endif
+#endif
+        }
+        
+    }
+
+    else if (env->u1mode[u4VdpId] == FBM_MODE_1080P_422)
+    {
+        UPDATE_WxH_BY_RESOLUTION(u4VdpId);
+		#if defined(CC_MT5880)
+		if((SRM_GetCurrFBMMode()== FBM_NETMODE)&& (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV_SHRINK))
+		{
+			u4Width=min(960,u4Width);
+		}
+
+		#endif
+        if((env->u4InputHeight[u4VdpId]>1080)&&(u4HPDSize<1920))
+        {
+            u4Height = env->u4InputHeight[u4VdpId]+20;//for 1600*1200 on no-fhd panel.
+        }
+        // pscan-prog-disp-mode: not consider the onoff of NR, because it does
+        // not affect the size in prog disp mode
+        if (u4MddiMode & FBM_POOL_MODE_MDDI_DISP)
+        {
+            UPDATE_EPG_WxH(u4VdpId, 720, 1080);
+
+#if defined(CC_MT5398) || defined(CC_MT5880)
+            if(E_TD_OUT_NATIVE != TD_MIB_OUT(u4DrvTDTVDIModeQuery()))
+            {
+                u4Width = (u4Width/2+255)/256*256*2;            
+            }
+#endif
+#if defined(CC_MT5880)
+            if(E_TD_OUT_3D_FS==TD_MIB_OUT(u4DrvTDTVDIModeQuery()))
+            {
+                if(E_TD_IN_FS_P == eDIIn)
+                {
+                    u4Width = MIN(960 , u4Width);
+                }
+            }
+            if(E_TD_OUT_3D_LI == TD_MIB_OUT(u4DrvTDTVDIModeQuery()))
+            {
+                if((E_TD_IN_SBS_P == eDIIn) || (E_TD_IN_FS_P == eDIIn))
+                {//According to Predown rule, it will be predown to half of panel height in these conditions.
+                    u4Height = MIN(u4DisplayH/2 , u4Height); 
+                }
+                if((E_TD_IN_TB_I == eDIIn) || (E_TD_IN_LI_P== eDIIn))
+                {
+                    u4Height = MIN(u4DisplayH , u4Height);
+                }
+            }
+            if(E_TD_OUT_NATIVE == TD_MIB_OUT(u4DrvTDTVDIModeQuery()) &&(E_TD_IN_LI_P== eDIIn))
+            {
+                u4Height = MIN(u4DisplayH , u4Height);
+            }
+#endif
+
+#if defined(CC_MT5396) || defined(CC_MT5368)||defined(CC_MT5389) || defined(CC_MT5398)|| defined(CC_MT5880)
+                if ((BSP_GetIcVersion() == IC_VER_5396_AA) 
+                    ||(BSP_GetIcVersion() == IC_VER_5368_AA)
+#if defined(CC_MT5880)    
+                    ||(BSP_GetIcVersion() == IC_VER_5880_AA || BSP_GetIcVersion() == IC_VER_5860_AA)
+#endif //defined(CC_MT5880) || defined(CC_MT5398)
+                    ||(E_TD_IN_LI_P==TD_MIB_IN(u4DrvTDTVDIModeQuery()))
+                    )
+                {
+                    CALCULATE_PSCAN_NR_YC_SIZE_BEFORE_ECO();
+                }
+                else
+                {
+                    #if defined(CC_MT5398)
+                    if(BSP_GetIcVersion() == IC_VER_5398_AA)
+                    {
+                        CALCULATE_PSCAN_NR_YC_SIZE_3D_BEFORE_ECO();
+                    }
+                    else
+                    #endif
+                    {
+                	    CALCULATE_PSCAN_NR_YC_SIZE_3D();
+                    }
+                } 
+#else
+            CALCULATE_PSCAN_NR_YC_SIZE();
+#endif
+            u4Mode = 0;
+            if(fgFBM_PscanTest)
+            {
+                u4Width = 1920;
+                u4Height = 1080;
+                u4Size = FBM_ALIGN_MASK(FBM_MDDI_BI_10BIT_422_SIZE(u4Width, u4Height, 10, 10), FBM_MDDI_SIZE_ALIGMENT);
+                //Printf("---------Allen Test: size: 0x%x----------\n",u4Size);
+            }
+            if (u4VdpId == VDP_1)
+            {
+                UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_MAIN, MDDI);
+            }
+            else
+            {
+                UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_SUB, MDDI);
+            }
+        }
+#if defined(CC_MT5396) || defined(CC_MT5398)
+        else if (u4ScalerMode & (FBM_POOL_MODE_SCPOS_FULL|FBM_POOL_MODE_SCPOS_DISP|FBM_POOL_MODE_SCPOS_LINESYNC_DISP))
+#else
+        else if (u4ScalerMode & (FBM_POOL_MODE_SCPOS_FULL|FBM_POOL_MODE_SCPOS_DISP))
+#endif
+        {
+             UPDATE_EPG_WxH(u4VdpId, 720, 1080);
+
+             // scaler
+             {
+                //if (u4DrvTDTVForceDramModeQuery() == E_TDTV_DRAM_6FB)
+                if (u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_6FB)
+                {
+                    u4FlipModule = FLIP_BY_3D;
+                }
+                #if defined(SUPPORT_3D_OVSN_BY_SCL)
+                else if(u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_3FB)
+                {
+                    u4Width = 1920;
+                    u4Height = 1080;
+                }
+                #endif
+                
+            }
+#if defined(CC_MT5880)
+                    if((SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2)
+				  ||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV_SHRINK))
+            {
+                //if (u4DrvTDTVForceDramModeQuery() == E_TDTV_DRAM_6FB)
+                if (u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_6FB)
+                {
+                    u4FlipModule = FLIP_BY_3D;
+                }
+                //else if(u4DrvTDTVForceDramModeQuery() == E_TDTV_DRAM_3FB)
+                else if(u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_3FB)
+                {
+                    u4Height = 1080;
+                    //Printf("**5368/89 FBM DRAM_3FB**\n");
+                }
+            }
+#endif
+
+            UPDATE_EPG_WxH(u4VdpId, 720, 576);
+	     #if defined(CC_MT5398)  || defined(CC_MT5880)
+            if (env->u4Resolution[u4VdpId] >= 960*540)
+            {                  	
+                if (env->u1fgPOP)
+        	  {
+        	  	if(u4VdpId==VDP_1)
+        	  	{
+        	  		// preserve max POP main output window size
+                    		if ((u4HPDSize != 0) && (u4HPDSize < 1440))
+                    			u4Width = u4HPDSize;
+                    		else
+                    			u4Width = 1440;
+                    		u4Height = 900; 
+        	  	}
+        	  	else
+        	  	{
+            		u4Width = 960;
+                 	u4Height = 540;
+        	  }
+            }
+            }
+            #endif 
+
+            if(VDP_1==u4VdpId && fgIs2X)
+            {
+                u4Width = 1920;
+            }
+
+            CALCULATE_SCALER_422_PARAMETERS();
+            CHECK_SCALER_SIZE_TO_0();
+            if (u4VdpId == VDP_1)
+            {
+                UPDATE_PRPOOL(FBM_POOL_TYPE_SCPOS_DYN_MAIN, SCPOS);
+            }
+            else
+            {
+                UPDATE_PRPOOL(FBM_POOL_TYPE_SCPOS_DYN_SUB, SCPOS);
+            }
+
+	     // Pscan-nr
+	     UPDATE_WxH_BY_RESOLUTION(u4VdpId);
+		#if defined(CC_MT5880)
+		if((SRM_GetCurrFBMMode()== FBM_NETMODE)&& (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV_SHRINK))
+			{
+				u4Width=min(960,u4Width);
+			}
+
+		#endif
+     		if((env->u4InputHeight[u4VdpId]>1080)&&(u4HPDSize<1920))
+        	{
+            		u4Height = env->u4InputHeight[u4VdpId]+20;//for 1600*1200 on no-fhd panel.
+        	}
+     		
+            if (u4MddiMode & FBM_POOL_MODE_MDDI_NR_Y_C)
+            {
+                CALCULATE_PSCAN_NR_YC_SIZE();
+            }
+            else if (u4MddiMode & FBM_POOL_MODE_MDDI_NR_Y_ONLY)
+            {
+                CALCULATE_PSCAN_NR_Yonly_SIZE();
+            }
+            else // FBM_POOL_MODE_MDDI_NR_OFF
+            {
+                u4Size = 0;
+            }
+            u4Mode = 0;
+            if(fgFBM_PscanTest)
+            {
+                u4Width = 1920;
+                u4Height = 1080;
+                u4Size = FBM_ALIGN_MASK(FBM_MDDI_BI_10BIT_422_SIZE(u4Width, u4Height, 10, 10), FBM_MDDI_SIZE_ALIGMENT);
+                //Printf("---------Allen Test: size: 0x%x----------\n",u4Size);
+            }
+
+            if((VDP_1==u4VdpId) && fgIs2X)
+            {
+                u4Width = 1920;
+                u4Size  = 0;
+            }
+
+            if (u4VdpId == VDP_1)
+            {
+                UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_MAIN, MDDI);
+            }
+            else
+            {
+                UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_SUB, MDDI);
+            }
+
+        }
+    }
+
+    else if (env->u1mode[u4VdpId] == FBM_MODE_1080P_444)
+    {
+        UPDATE_WxH_BY_RESOLUTION(u4VdpId);
+
+        if((env->u4InputHeight[u4VdpId]>1080)&&(u4HPDSize<1920))
+        {
+            u4Height = env->u4InputHeight[u4VdpId]+20;//for 1600*1200 on no-fhd panel.
+        }
+        if (u4MddiMode & FBM_POOL_MODE_MDDI_DISP)
+        {
+            UPDATE_EPG_WxH(u4VdpId, 720, 1082);
+#if defined(CC_MT5398)
+			if(BSP_GetIcVersion() == IC_VER_5398_AA)
+				{
+				   CALCULATE_PROG_DISP_444_SIZE_EX();
+				}
+            else
+            	{
+                   CALCULATE_PROG_DISP_444_SIZE();
+            	}
+#else
+            CALCULATE_PROG_DISP_444_SIZE();
+#endif
+            u4Mode = 0;
+            if(fgFBM_PscanTest)
+            {
+                u4Width = 1920;
+                u4Height = 1080;
+                u4Size = FBM_ALIGN_MASK(FBM_MDDI_BI_10BIT_422_SIZE(u4Width, u4Height, 10, 10), FBM_MDDI_SIZE_ALIGMENT);
+                //Printf("---------Allen Test: size: 0x%x----------\n",u4Size);
+            }
+            if (u4VdpId == VDP_1)
+            {
+                UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_MAIN, MDDI);
+            }
+            else
+            {
+                UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_SUB, MDDI);
+            }
+        }
+        else if (u4ScalerMode & (FBM_POOL_MODE_SCPOS_FULL|FBM_POOL_MODE_SCPOS_DISP))
+        {
+            UPDATE_EPG_WxH(u4VdpId, 720, 576);
+#if (defined(CC_MT5395) && !defined(CC_MT5368) && !defined(CC_MT5396) && !defined(CC_MT5398))
+            if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5395_3DTV)
+                    || (SRMFBM_GetConf() == FBM_MEM_CFG_MT5395_3DTVCHA_NOMJC)
+                    || (SRMFBM_GetConf() == FBM_MEM_CFG_MT5395_3DTVCHB_NOMJC))
+            {
+                //if (u4DrvTDTVForceDramModeQuery() == E_TDTV_DRAM_6FB)
+                if (u4DrvTDTVForceDramModeQuery(u4VdpId) == E_TDTV_DRAM_6FB)
+                {
+                    u4FlipModule = FLIP_BY_3D;
+                }
+            }
+            else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5395_NOMJC)
+            {
+                u4FlipModule = FLIP_BY_SCALER;
+            }
+            else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT6595_COMP)
+            {
+                // adam.help.to.check
+                //u4FlipModule = FLIP_BY_SCALER;
+            }
+#endif
+#if defined(CC_MT5398)
+            {
+                //if (u4DrvTDTVForceDramModeQuery() == E_TDTV_DRAM_6FB)
+                if (u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_6FB)
+                {
+                    u4FlipModule = FLIP_BY_3D;
+                }
+                #if defined(SUPPORT_3D_OVSN_BY_SCL)
+                else if(u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_3FB)
+                {
+                    u4Width = 1920;
+                    u4Height = 1080;
+                }
+                #endif
+            }
+#endif
+#if defined(CC_MT5880)
+                 if((SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2)
+					||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV_SHRINK))
+            {
+                //if (u4DrvTDTVForceDramModeQuery() == E_TDTV_DRAM_6FB)
+                if (u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_6FB)
+                {
+                    u4FlipModule = FLIP_BY_3D;
+                }
+                //else if(u4DrvTDTVForceDramModeQuery() == E_TDTV_DRAM_3FB)
+                else if(u4DrvTDTVForceDramModeQueryEx(u4VdpId) == E_TDTV_DRAM_3FB)
+                {
+                    u4Height = 1080;
+                    //Printf("**5368/89 FBM DRAM_3FB**\n");
+                }
+            }
+#endif
+            #if defined(CC_MT5398)  || defined(CC_MT5880)
+            if (env->u4Resolution[u4VdpId] >= 960*540)
+            {                  	
+                if (env->u1fgPOP)
+        	  {
+        	  	if(u4VdpId==VDP_1)
+        	  	{
+        	  		// preserve max POP main output window size
+                    		if ((u4HPDSize != 0) && (u4HPDSize < 1440))
+                    			u4Width = u4HPDSize;
+                    		else
+                    			u4Width = 1440;
+                    		u4Height = 900; 
+        	  	}
+        	  	else
+        	  	{
+            		u4Width = 960;
+                 	u4Height = 540;
+        	  }
+            }
+            }
+            #endif 
+            CALCULATE_SCALER_444_PARAMETERS();
+            CHECK_SCALER_SIZE_TO_0();
+            if (u4VdpId == VDP_1)
+            {
+                UPDATE_PRPOOL(FBM_POOL_TYPE_SCPOS_DYN_MAIN, SCPOS);
+            }
+            else
+            {
+                UPDATE_PRPOOL(FBM_POOL_TYPE_SCPOS_DYN_SUB, SCPOS);
+            }
+
+            if(fgFBM_PscanTest)
+            {
+                u4Width = 1920;
+                u4Height = 1080;
+                u4Size = FBM_ALIGN_MASK(FBM_MDDI_BI_10BIT_422_SIZE(u4Width, u4Height, 10, 10), FBM_MDDI_SIZE_ALIGMENT);
+                if (u4VdpId == VDP_1)
+                {
+                    UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_MAIN, MDDI);
+                }
+                else
+                {
+                    UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_SUB, MDDI);
+                }
+            }
+        }
+    }
+
+    u4SizeOfCurrent[u4VdpId] = u4NextDramAddr-u4BaseDramAddr;
+    LOG(3, "vdp:%d, occupied size: 0x%x\n", u4VdpId, u4SizeOfCurrent[u4VdpId]);
+}
+
+void ExpandFBM4SubPIP(UINT32 u4VdpId, FBM_AUTO_INC_ENV_T* env, UINT32 u4BaseDramAddr)
+{
+    UINT32 u4NextDramAddr, u4MddiMode, u4ScalerMode,u4TDCMode, u4Width, u4Height, u4Size, u4Mode;
+    UINT8 u1Ynum, u1Cnum, u1ScalerNum;
+    UINT32 u4FlipModule;
+    FBM_POOL_T* prPool;
+
+    u4NextDramAddr = u4BaseDramAddr;
+    u4MddiMode = SRM_GetMddiMode(u4VdpId);
+    u4TDCMode = SRM_GetTDCMode(u4VdpId);
+    u4ScalerMode = SRM_GetScposMode(u4VdpId);
+
+    u4FlipModule = u4DecideFlipModule(u4VdpId, u4ScalerMode, env->u1IsMPEG[u4VdpId], env);
+
+    // reset value
+    {
+        u4Size = 0;
+        u4Width = 720;
+        u4Height = 576;
+        u4Mode = 0xA5A5A5A5;
+        UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_SUB, MDDI);
+        UPDATE_PRPOOL(FBM_POOL_TYPE_SCPOS_DYN_SUB, SCPOS);
+        if (env->u1IsTDC[u4VdpId])
+        {
+            UPDATE_PRPOOL(FBM_POOL_TYPE_TDC_DYN, TDC);
+        }
+    }
+
+    if ((env->u1mode[u4VdpId] == FBM_MODE_1080I) || (env->u1mode[u4VdpId] == FBM_MODE_576I))
+    {
+    	/* move TDC config pool at the beginning */
+    	// tdc
+    	/*
+        if (env->u1IsTDC[u4VdpId])
+        {
+	#if defined(CC_MT5396) ||defined(CC_MT5368) ||defined(CC_MT5389)
+            UPDATE_TDC_POOL_BY_MODE();
+	#else
+            UPDATE_TDC_POOL();
+	#endif
+        }
+        */
+        
+        // pscan
+        if (env->u1mode[u4VdpId] == FBM_MODE_1080I)
+        {
+            u4Width = 720;
+            u4Height = 1082;
+        }
+        else // if (env->u1mode[u4VdpId] == FBM_MODE_576I)
+        {
+            u4Width = 780;
+            u4Height = 576;
+        }
+        CALCULATE_PSCAN_YC_NUM(u4VdpId, u4MddiMode, u4FlipModule, &u1Ynum, &u1Cnum);
+        if (fgFBM_PscanTestSub)
+        {
+            u1Ynum = 5;
+            u1Cnum = 5;
+        }
+        // 8 bit only
+        u4Size = FBM_ALIGN_MASK(FBM_MDDI_SUB_BI_8BIT_422_SIZE(u4Width, u4Height, u1Ynum, u1Cnum), FBM_MDDI_SIZE_ALIGMENT);
+        u4Mode = 0;
+        UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_SUB, MDDI);
+
+        // scaler
+        u4Width = 780;
+        u4Height = 578;
+        CALCULATE_SCALER_422_PARAMETERS();
+        UPDATE_PRPOOL(FBM_POOL_TYPE_SCPOS_DYN_SUB, SCPOS);
+
+	/* move TDC config pool at the beginning */
+        // tdc
+        
+        if (env->u1IsTDC[u4VdpId])
+        {
+#if defined(CC_MT5396) ||defined(CC_MT5368) ||defined(CC_MT5389)
+            UPDATE_TDC_POOL_BY_MODE();
+#else
+            UPDATE_TDC_POOL();
+#endif
+        }
+        
+    }
+
+    else if ((env->u1mode[u4VdpId] == FBM_MODE_1080P_422) || (env->u1mode[u4VdpId] == FBM_MODE_1080P_444))
+    {
+        // pscan - dummpy for FBM_POOL_MODE_SCPOS_BYPASS_PSCANNR
+        u4NextDramAddr = u4BaseDramAddr;
+        u4Width = 780;
+        u4Height = 576;
+        u1Ynum = 1;
+        u1Cnum = 1;
+        u4Mode=0;
+        u4Size = FBM_ALIGN_MASK(FBM_MDDI_SUB_BI_8BIT_422_SIZE(u4Width, u4Height, u1Ynum, u1Cnum), FBM_MDDI_SIZE_ALIGMENT);
+        //u4Mode = FBM_POOL_MODE_SCPOS_BYPASS_PSCANNR;
+        UPDATE_PRPOOL(FBM_POOL_TYPE_MDDI_DYN_SUB, MDDI);
+
+        // scaler
+        u4NextDramAddr = u4BaseDramAddr;
+        u4Width = 780;
+        u4Height = 576;
+        CALCULATE_SCALER_444_PARAMETERS();
+        UPDATE_PRPOOL(FBM_POOL_TYPE_SCPOS_DYN_SUB, SCPOS);
+    }
+
+    u4SizeOfCurrent[u4VdpId] = u4NextDramAddr-u4BaseDramAddr;
+    LOG(3, "vdp:%d, occupied size: 0x%x\n", u4VdpId, u4SizeOfCurrent[u4VdpId]);
+}
+
+#if defined(CC_FBM_SPLIT_MPEG_FREE_PART)
+UINT32 _FbmGetDyamicMPEG_NptvMaxSize(void)
+{
+    return 0x34a000; // 720P
+}
+
+UINT32 _FbmGetDyamicMPEG_MPEGMaxSize(void)
+{
+    return 0x750000; // RMVB 720P
+}
+#endif
+
+#if defined(CC_MT5398)
+static FBM_POOL_T* _FbmGetPoolInfoAuto_MT5398_1GB(UCHAR ucPoolType, const FBM_POOL_MODULE_INFO_T* prInfo)
+{
+    FBM_POOL_T* prPool=NULL;
+    static UINT8 fgInited = FALSE;
+    //FBM_POOL_T* prPrevPool;
+    FBM_AUTO_INC_ENV_T env;
+    UINT8 IsNoSub = FALSE;
+    UINT8 u1CheckDSP = 1;
+    UNUSED(u1CheckDSP);
+
+    if (!fgInited) // calculate max size of main, sub path in pip/pop
+    {
+        fgInited = TRUE;
+
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_MAIN);
+        _fbm_u4NptvBeAddr = prPool->u4Addr;
+        //prPrevPool = FBM_GetPoolInfo(FBM_POOL_TYPE_DSP);
+        //_fbm_u4NptvSubPopAddr = (_fbm_u4NptvBeAddr + (prPrevPool->u4Addr))/2;
+        _fbm_u4NptvSubPopAddr = _fbm_u4NptvBeAddr + (prPool->u4Size)/2;
+        _fbm_u4NptvSubPopAddr = _fbm_u4NptvSubPopAddr +0x200000;
+        /* set _fbm_u4NptvSubPipAddr in the following case */
+
+        if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV)
+			||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV_NOSUB))
+        {
+            _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x1e80000;
+        }
+		else if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV)
+		 	||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV_NOSUB))
+        {
+            _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x1380000;
+        }
+        else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2)
+        {
+            _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x2000000;
+        }
+        else
+        {
+#if defined(CC_FLIP_MIRROR_SUPPORT)
+            _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x1310000;
+#else
+            // MT5365_128Mx2
+            _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x1180000;
+            //_fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x1c00000;
+#endif
+        }
+
+        //#if defined(CC_IC_VERIFY_FBM_MODE)
+#if 0
+        _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x2000000;
+#endif
+
+        // reset value
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_MAIN);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_MDDI_ADDR_ALIGMENT);
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_SUB);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_MDDI_ADDR_ALIGMENT);
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_MAIN);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_SUB);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_TDC_DYN);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);        
+#ifndef CC_SUPPORT_RECORD_AV
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_TDC);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);
+#endif
+        
+    }
+
+    _FbmGetEnv(&env);
+
+#if defined(CC_FBM_NO_SUBPATH)
+    IsNoSub = TRUE;
+#endif
+
+    if (IsNoSub)
+    {
+        if (env.u1IsMPEG[VDP_1])
+        {
+#if defined(CC_DYNAMIC_MPEG_SIZE)
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MPEG);
+#else
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_FEEDER);
+#endif
+            _fbm_u4NptvBeAddr = prPool->u4Addr + prPool->u4Size;
+#if defined(CC_DYNAMIC_MPEG_SIZE) // unmark
+            _fbm_u4NptvBeAddr = prPool->u4Addr + SRM_GetMMSizeMode(VDP_1);
+#endif
+        }
+        else
+        {
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_MAIN);
+            _fbm_u4NptvBeAddr = prPool->u4Addr;
+        }
+
+        if (env.u1fgPIP || env.u1fgPOP)
+        {
+            Printf("This model does NOT support PIP/POP\n");
+            //ASSERT(0);
+        }
+    }
+
+    ExpandFBM4SinglexPOP(VDP_1, &env, _fbm_u4NptvBeAddr);
+#if !defined(CC_FBM_NO_SUBPATH)
+    if (env.u1fgPIP || env.u1fgPOP)
+    {
+        if (env.u1fgPOP)
+        {
+            // u4NextDramAddr = _fbm_u4NptvSubPopAddr; // todo
+            ExpandFBM4SinglexPOP(VDP_2, &env, _fbm_u4NptvSubPopAddr);
+        }
+        else
+        {
+            // u4NextDramAddr = _fbm_u4NptvSubPipAddr; // todo
+            ExpandFBM4SubPIP(VDP_2, &env, _fbm_u4NptvSubPipAddr);
+        }
+    }
+#endif
+    if ((ucPoolType == (UCHAR) FBM_POOL_TYPE_TDC) ||
+            (ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_MAIN) ||
+            (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_MAIN) ||
+            (ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_PIP) ||
+            (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_PIP))
+    {
+        if (ucPoolType == (UCHAR) FBM_POOL_TYPE_TDC)
+        {
+            _eCurrentTdc = FBM_POOL_TYPE_TDC_DYN;
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_TDC_DYN);
+        }
+        if (ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_MAIN)
+        {
+            _eCurrentMddiMain = FBM_POOL_TYPE_MDDI_DYN_MAIN;
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_MAIN);
+        }
+        if (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_MAIN)
+        {
+            _eCurrentScposMain = FBM_POOL_TYPE_SCPOS_DYN_MAIN;
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_MAIN);
+        }
+        if (ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_PIP)
+        {
+            _eCurrentMddiPip = FBM_POOL_TYPE_MDDI_DYN_SUB;
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_SUB);
+        }
+        if (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_PIP)
+        {
+            _eCurrentScposPip = FBM_POOL_TYPE_SCPOS_DYN_SUB;
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_SUB);
+        }
+        // sub pip error checking
+        // sub pop error checking
+#if !defined(CC_FBM_NO_SUBPATH)
+        if ((ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_MAIN) ||
+                (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_MAIN))
+        {
+            if (env.u1fgPIP)
+            {
+                if ((prPool->u4Addr + prPool->u4Size) > _fbm_u4NptvSubPipAddr)
+                {
+                    Printf("FBM main overwrite subpip\n");
+                }
+            }
+            else if (env.u1fgPOP)
+            {
+                if ((prPool->u4Addr + prPool->u4Size) > _fbm_u4NptvSubPopAddr)
+                {
+                    Printf("FBM main overwrite subpop\n");
+                }
+            }
+        }
+#endif
+
+        /*
+            if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5395_DDR2x2)
+             || (SRMFBM_GetConf() == FBM_MEM_CFG_MT5396_DDR3x4)
+                || (SRMFBM_GetConf() == FBM_MEM_CFG_MT5395_3DTVCHB_NOMJC))
+            {
+                // only SCPOS_MAIN in channel 2, so it need not to check
+                u1CheckDSP = 0;
+            }
+            */
+        // dsp error checking
+
+        if (u1CheckDSP)
+        {
+            if ((prPool->u4Addr + prPool->u4Size) > (FBM_GetPoolInfo(FBM_POOL_TYPE_DSP)->u4Addr))
+            {
+                Printf("FBM nptv overlap with DSP: 0x%x\n", ucPoolType);
+                Printf("occupied range: 0x%x--0x%x\n", prPool->u4Addr, (prPool->u4Addr + prPool->u4Size));
+                Printf("valid range: 0x%x--0x%x\n", _fbm_u4NptvBeAddr, (FBM_GetPoolInfo(FBM_POOL_TYPE_DSP)->u4Addr));
+                VERIFY(0);
+            }
+        }
+        return prPool;
+    }
+
+#if defined(CC_FBM_SPLIT_MPEG_FREE_PART)
+    prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MPEG_FREE);
+    prPool->u4Addr = FBM_GetPoolInfo(FBM_POOL_TYPE_MPEG)->u4Addr;
+    prPool->u4Addr += _FbmGetDyamicMPEG_NptvMaxSize();
+    prPool->u4Addr += _FbmGetDyamicMPEG_MPEGMaxSize();
+    prPool->u4Size = FBM_GetPoolInfo(FBM_POOL_TYPE_DSP)->u4Addr - prPool->u4Addr;
+#endif
+
+		if(ucPoolType >= FBM_POOL_TYPE_NS)
+    {
+    	Printf("input type error (%d)\n",ucPoolType);
+    	return (FBM_GetPoolInfo(FBM_POOL_TYPE_TOTAL));
+    }
+    prPool = FBM_GetPoolInfo(ucPoolType);
+
+    return prPool;
+}
+
+#endif
+#if defined(CC_MT5880)
+static FBM_POOL_T* _FbmGetPoolInfoAuto_MT5880_2G(UCHAR ucPoolType, const FBM_POOL_MODULE_INFO_T* prInfo)
+{
+    FBM_POOL_T* prPool=NULL;
+    static UINT8 fgInited = FALSE;
+    //FBM_POOL_T* prPrevPool;
+    FBM_AUTO_INC_ENV_T env;
+    UINT8 IsNoSub = FALSE;
+    UINT8 u1CheckDSP = 1;
+    UNUSED(u1CheckDSP);
+
+    if (!fgInited) // calculate max size of main, sub path in pip/pop
+    {
+        fgInited = TRUE;
+
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_MAIN);
+        _fbm_u4NptvBeAddr = prPool->u4Addr;
+        //prPrevPool = FBM_GetPoolInfo(FBM_POOL_TYPE_DSP);
+        //_fbm_u4NptvSubPopAddr = (_fbm_u4NptvBeAddr + (prPrevPool->u4Addr))/2;
+        _fbm_u4NptvSubPopAddr = _fbm_u4NptvBeAddr + (prPool->u4Size)/2;
+        _fbm_u4NptvSubPopAddr = _fbm_u4NptvSubPopAddr +0x200000;
+        /* set _fbm_u4NptvSubPipAddr in the following case */
+
+        if ( (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2) )
+        {
+            // the same as MT5365_128Mx2
+            // _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0xe00000;
+            _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x2000000;
+        }
+		else if((SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV))
+			{
+				_fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x1400000;
+			}
+		else if((SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1))
+			{
+			#if defined(CC_FBM_NO_SUBPATH)
+				_fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0xb90000;
+			#else
+			    _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + FBM_SCPOS_MAIN_256M_SIZE -0x700000;
+			#endif
+			}
+        else
+        {
+#if defined(CC_FLIP_MIRROR_SUPPORT)
+            _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x1310000;
+#else
+            // MT5365_128Mx2
+            _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x1180000;
+            //_fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x1c00000;
+#endif
+        }
+
+        //#if defined(CC_IC_VERIFY_FBM_MODE)
+#if 0
+        _fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x2000000;
+#endif
+
+
+        // reset value
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_MAIN);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_MDDI_ADDR_ALIGMENT);
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_SUB);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_MDDI_ADDR_ALIGMENT);
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_MAIN);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_SUB);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_TDC_DYN);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);
+		#ifndef CC_SUPPORT_RECORD_AV
+        prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_TDC);
+        prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);
+		#endif
+    }
+
+    _FbmGetEnv(&env);
+
+#if defined(CC_FBM_NO_SUBPATH)
+    IsNoSub = TRUE;
+#endif
+    if (IsNoSub)
+    {
+        if (env.u1IsMPEG[VDP_1])
+        {
+#if defined(CC_DYNAMIC_MPEG_SIZE)
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MPEG);
+#else
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_MAIN);
+#endif
+            _fbm_u4NptvBeAddr = prPool->u4Addr;
+#if defined(CC_DYNAMIC_MPEG_SIZE) // unmark
+            _fbm_u4NptvBeAddr = prPool->u4Addr + SRM_GetMMSizeMode(VDP_1);
+#endif
+        }
+        else
+        {
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MPEG);
+            _fbm_u4NptvBeAddr = prPool->u4Addr;
+        }
+
+        if (env.u1fgPIP || env.u1fgPOP)
+        {
+            Printf("This model does NOT support PIP/POP\n");
+            //ASSERT(0);
+        }
+    }
+
+    ExpandFBM4SinglexPOP(VDP_1, &env, _fbm_u4NptvBeAddr);
+#if !defined(CC_FBM_NO_SUBPATH)
+    if (env.u1fgPIP || env.u1fgPOP)
+    {
+        if (env.u1fgPOP)
+        {
+            // u4NextDramAddr = _fbm_u4NptvSubPopAddr; // todo
+            ExpandFBM4SinglexPOP(VDP_2, &env, _fbm_u4NptvSubPopAddr);
+        }
+        else
+        {
+            // u4NextDramAddr = _fbm_u4NptvSubPipAddr; // todo
+            ExpandFBM4SubPIP(VDP_2, &env, _fbm_u4NptvSubPipAddr);
+        }
+    }
+#endif
+    if ((ucPoolType == (UCHAR) FBM_POOL_TYPE_TDC) ||
+            (ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_MAIN) ||
+            (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_MAIN) ||
+            (ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_PIP) ||
+            (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_PIP))
+    {
+        if (ucPoolType == (UCHAR) FBM_POOL_TYPE_TDC)
+        {
+            _eCurrentTdc = FBM_POOL_TYPE_TDC_DYN;
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_TDC_DYN);
+        }
+        if (ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_MAIN)
+        {
+            _eCurrentMddiMain = FBM_POOL_TYPE_MDDI_DYN_MAIN;
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_MAIN);
+        }
+        if (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_MAIN)
+        {
+            _eCurrentScposMain = FBM_POOL_TYPE_SCPOS_DYN_MAIN;
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_MAIN);
+        }
+        if (ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_PIP)
+        {
+            _eCurrentMddiPip = FBM_POOL_TYPE_MDDI_DYN_SUB;
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_SUB);
+        }
+        if (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_PIP)
+        {
+            _eCurrentScposPip = FBM_POOL_TYPE_SCPOS_DYN_SUB;
+            prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_SUB);
+        }
+        // sub pip error checking
+        // sub pop error checking
+#if !defined(CC_FBM_NO_SUBPATH)
+        if ((ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_MAIN) ||
+                (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_MAIN))
+        {
+            if (env.u1fgPIP)
+            {
+                if ((prPool->u4Addr + prPool->u4Size) > _fbm_u4NptvSubPipAddr)
+                {
+                    Printf("FBM main overwrite subpip\n");
+                }
+            }
+            else if (env.u1fgPOP)
+            {
+                if ((prPool->u4Addr + prPool->u4Size) > _fbm_u4NptvSubPopAddr)
+                {
+                    Printf("FBM main overwrite subpop\n");
+                }
+            }
+        }
+#endif
+
+        /*
+            if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5395_DDR2x2)
+             || (SRMFBM_GetConf() == FBM_MEM_CFG_MT5396_DDR3x4)
+                || (SRMFBM_GetConf() == FBM_MEM_CFG_MT5395_3DTVCHB_NOMJC))
+            {
+                // only SCPOS_MAIN in channel 2, so it need not to check
+                u1CheckDSP = 0;
+            }
+            */
+        // dsp error checking
+
+        if (u1CheckDSP)
+        {
+            if ((prPool->u4Addr + prPool->u4Size) > (FBM_GetPoolInfo(FBM_POOL_TYPE_DSP)->u4Addr))
+            {
+                Printf("FBM nptv overlap with DSP: 0x%x\n", ucPoolType);
+                Printf("occupied range: 0x%x--0x%x\n", prPool->u4Addr, (prPool->u4Addr + prPool->u4Size));
+                Printf("valid range: 0x%x--0x%x\n", _fbm_u4NptvBeAddr, (FBM_GetPoolInfo(FBM_POOL_TYPE_DSP)->u4Addr));
+                VERIFY(0);
+            }
+        }
+        return prPool;
+    }
+
+#if defined(CC_FBM_SPLIT_MPEG_FREE_PART)
+    prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MPEG_FREE);
+    prPool->u4Addr = FBM_GetPoolInfo(FBM_POOL_TYPE_MPEG)->u4Addr;
+    prPool->u4Addr += _FbmGetDyamicMPEG_NptvMaxSize();
+    prPool->u4Addr += _FbmGetDyamicMPEG_MPEGMaxSize();
+    prPool->u4Size = FBM_GetPoolInfo(FBM_POOL_TYPE_DSP)->u4Addr - prPool->u4Addr;
+#endif
+
+		if(ucPoolType >= FBM_POOL_TYPE_NS)
+    {
+    	Printf("input type error (%d)\n",ucPoolType);
+    	return (FBM_GetPoolInfo(FBM_POOL_TYPE_TOTAL));
+    }
+    prPool = FBM_GetPoolInfo(ucPoolType);
+
+    return prPool;
+}
+
+static FBM_POOL_T* _FbmGetPoolInfoAuto_MT5880_3DTV(UCHAR ucPoolType, const FBM_POOL_MODULE_INFO_T* prInfo)
+{
+	FBM_POOL_T* prPool;
+	FBM_AUTO_INC_ENV_T env;
+	UINT8 IsNoSub = FALSE;
+	UINT8 u1CheckDSP = 1;
+	UNUSED(u1CheckDSP);
+	{
+		if(SRM_GetCurrFBMMode()==FBM_MMMODE)
+		{
+		prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_PQ_MM);
+		}
+		else if(SRM_GetCurrFBMMode()==FBM_NETMODE)
+		{
+		prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_PQ_NET);
+		}
+		else 
+		{
+		prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_PQ_TV);
+		}
+		_fbm_u4NptvBeAddr = prPool->u4Addr;
+		_fbm_u4NptvSubPopAddr = _fbm_u4NptvBeAddr + (prPool->u4Size)/2;
+		_fbm_u4NptvSubPipAddr = _fbm_u4NptvBeAddr + 0x1b00000;
+		if(SRM_GetCurrFBMMode()==FBM_NETMODE)
+			{
+				_fbm_u4NptvBeAddr = prPool->u4Addr;
+				_fbm_u4NptvSubPopAddr = prPool->u4Addr;
+				_fbm_u4NptvSubPipAddr = prPool->u4Addr;
+			}
+		prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_MAIN);
+		prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_MDDI_ADDR_ALIGMENT);
+		prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_SUB);
+		prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_MDDI_ADDR_ALIGMENT);
+		prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_MAIN);
+		prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);
+		prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_SUB);
+		prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);
+		prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_TDC_DYN);
+		prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);
+		prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_TDC);
+		prPool->u4Addr = FBM_ALIGN_MASK(_fbm_u4NptvBeAddr, FBM_SCPOS_ADDR_ALIGMENT);
+	}
+	_FbmGetEnv(&env);
+#if defined(CC_FBM_NO_SUBPATH)
+	IsNoSub = TRUE;
+#endif
+	if (IsNoSub)
+	{
+		if (env.u1IsMPEG[VDP_1])
+		{
+    #if defined(CC_DYNAMIC_MPEG_SIZE)
+			prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MPEG);
+    #else
+			prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_FEEDER);
+    #endif
+			_fbm_u4NptvBeAddr = prPool->u4Addr + prPool->u4Size;
+        #if defined(CC_DYNAMIC_MPEG_SIZE) // unmark
+			_fbm_u4NptvBeAddr = prPool->u4Addr + SRM_GetMMSizeMode(VDP_1);
+        #endif
+		}
+		else
+		{
+			prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_MAIN);
+			_fbm_u4NptvBeAddr = prPool->u4Addr;
+		}
+		if (env.u1fgPIP || env.u1fgPOP)
+		{
+			Printf("This model does NOT support PIP/POP\n");
+		}
+	}
+	ExpandFBM4SinglexPOP(VDP_1, &env, _fbm_u4NptvBeAddr);
+#if !defined(CC_FBM_NO_SUBPATH)
+	{
+		if (env.u1fgPIP || env.u1fgPOP)
+		{
+			if (env.u1fgPOP)
+			{
+				ExpandFBM4SinglexPOP(VDP_2, &env, _fbm_u4NptvSubPopAddr);
+			}
+			else
+			{
+				ExpandFBM4SubPIP(VDP_2, &env, _fbm_u4NptvSubPipAddr);
+			}
+		}
+	}
+#endif
+	if ((ucPoolType == (UCHAR) FBM_POOL_TYPE_TDC) ||
+		(ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_MAIN) ||
+		(ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_MAIN) ||
+		(ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_PIP) ||
+		(ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_PIP))
+	{
+		if (ucPoolType == (UCHAR) FBM_POOL_TYPE_TDC)
+		{
+			_eCurrentTdc = FBM_POOL_TYPE_TDC_DYN;
+			prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_TDC_DYN);
+		}
+		if (ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_MAIN)
+		{
+			_eCurrentMddiMain = FBM_POOL_TYPE_MDDI_DYN_MAIN;
+			prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_MAIN);
+		}
+		if (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_MAIN)
+		{
+			_eCurrentScposMain = FBM_POOL_TYPE_SCPOS_DYN_MAIN;
+			prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_MAIN);
+		}
+		if (ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_PIP)
+		{
+			_eCurrentMddiPip = FBM_POOL_TYPE_MDDI_DYN_SUB;
+			prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MDDI_DYN_SUB);
+		}
+		if (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_PIP)
+		{
+			_eCurrentScposPip = FBM_POOL_TYPE_SCPOS_DYN_SUB;
+			prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_SCPOS_DYN_SUB);
+		}
+    #if !defined(CC_FBM_NO_SUBPATH)
+		{
+			if ((ucPoolType == (UCHAR) FBM_POOL_TYPE_MDDI_MAIN) ||
+					(ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_MAIN))
+			{
+				if (env.u1fgPIP)
+				{
+					if ((prPool->u4Addr + prPool->u4Size) > _fbm_u4NptvSubPipAddr)
+					{
+						Printf("FBM main overwrite subpip\n");
+					}
+				}
+				else if (env.u1fgPOP)
+				{
+					if ((prPool->u4Addr + prPool->u4Size) > _fbm_u4NptvSubPopAddr)
+					{
+						Printf("FBM main overwrite subpop\n");
+					}
+				}
+			}
+		}
+    #endif
+		if (u1CheckDSP)
+		{
+			if ((prPool->u4Addr + prPool->u4Size) > (FBM_GetPoolInfo(FBM_POOL_TYPE_DSP)->u4Addr))
+			{
+				Printf("FBM nptv overlap with DSP: 0x%x\n", ucPoolType);
+				Printf("occupied range: 0x%x--0x%x\n", prPool->u4Addr, (prPool->u4Addr + prPool->u4Size));
+				Printf("valid range: 0x%x--0x%x\n", _fbm_u4NptvBeAddr, (FBM_GetPoolInfo(FBM_POOL_TYPE_DSP)->u4Addr));
+            #if defined(CC_MT5368) || defined(CC_MT5389)
+				Printf("------------------------------------\n");
+            #else
+				VERIFY(0);
+            #endif
+			}
+		}
+		return prPool;
+	}
+#if defined(CC_FBM_SPLIT_MPEG_FREE_PART)
+	prPool = FBM_GetPoolInfo(FBM_POOL_TYPE_MPEG_FREE);
+	prPool->u4Addr = FBM_GetPoolInfo(FBM_POOL_TYPE_MPEG)->u4Addr;
+	prPool->u4Addr += _FbmGetDyamicMPEG_NptvMaxSize();
+	prPool->u4Addr += _FbmGetDyamicMPEG_MPEGMaxSize();
+	prPool->u4Size = FBM_GetPoolInfo(FBM_POOL_TYPE_DSP)->u4Addr - prPool->u4Addr;
+#endif
+	if(ucPoolType >= FBM_POOL_TYPE_NS)
+    {
+    	Printf("input type error (%d)\n",ucPoolType);
+    	return (FBM_GetPoolInfo(FBM_POOL_TYPE_TOTAL));
+    }
+
+	prPool = FBM_GetPoolInfo(ucPoolType);
+	return prPool;
+}
+#endif
+
+#endif
+//-------------------------------------------------------------------------
+/** FBM_GetPoolInfoAuto
+ *  Get Pool Info
+ *  @param  ucPoolType
+ *  @param  prInfo
+ *  @return NONE.
+ */
+//-------------------------------------------------------------------------
+FBM_POOL_T* FBM_GetPoolInfoAuto(UCHAR ucPoolType, const FBM_POOL_MODULE_INFO_T* prInfo)
+{
+    FBM_POOL_MODULE_INFO_T rInfo;
+    if (prInfo == NULL)
+    {
+        SRM_VDP_INFO_T* prVdpInfo;
+        prVdpInfo = SRM_GetVdpInfo(VDP_1);
+        x_memset((VOID*)&rInfo, 0, sizeof(FBM_POOL_MODULE_INFO_T));
+        rInfo.u4SourceType = prVdpInfo->u4Source;
+        rInfo.u4Resolution = prVdpInfo->u4Resolution;
+        rInfo.u4Interlace = prVdpInfo->u4Interlace;
+        rInfo.u4VgaTiming = prVdpInfo->u4VgaTiming;
+        rInfo.u4ColorFormat444 = prVdpInfo->u4ColorFormat444;
+
+        if (SRM_IsPopVideo())
+        {
+            rInfo.u4PipPop = SRM_TV_MODE_TYPE_POP;
+        }
+        else if (SRM_IsPipVideo())
+        {
+            rInfo.u4PipPop = SRM_TV_MODE_TYPE_PIP;
+        }
+        prInfo = &rInfo;
+    }
+    else
+    {
+        x_memcpy((VOID*)&rInfo, (VOID*)prInfo, sizeof(FBM_POOL_MODULE_INFO_T));
+        rInfo.u4Resolution = prInfo->u4Width * prInfo->u4Height;
+        prInfo = &rInfo;
+    }
+
+    LOG(3, "FBM Get Pool (%s) s(%d) w(%d) h(%d), p(%d), i(%d), r(%d)\n",
+        FBM_GetPoolName(ucPoolType),
+        prInfo->u4SourceType,
+        prInfo->u4Width,
+        prInfo->u4Height,
+        prInfo->u4PipPop,
+        prInfo->u4Interlace,
+        prInfo->u4Resolution);
+#if defined(CC_MT5398)
+     if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV)
+	 	||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV_NOSUB)
+	 	||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV)
+	 	||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV_NOSUB)
+    	|| (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2)
+    	)
+    {
+        return _FbmGetPoolInfoAuto_MT5398_1GB(ucPoolType, prInfo);
+    }
+#endif
+#if defined(CC_MT5880)
+    if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2)	
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV)
+    	||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1)
+		)
+    {
+        return _FbmGetPoolInfoAuto_MT5880_2G(ucPoolType, prInfo);
+    }
+	 else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV_SHRINK)
+    {
+        return _FbmGetPoolInfoAuto_MT5880_3DTV(ucPoolType, prInfo);
+    }
+#endif
+    else
+    {
+        Printf("no fbm table fit \n");
+        VERIFY(0);
+    }
+    return FBM_GetPoolInfo(ucPoolType);
+}
+
+
+//-------------------------------------------------------------------------
+/** FBM_GetPoolCurrent
+ *  Get Pool Current Use
+ *  @param ucPoolType
+ *  @return ucPoolType.
+ */
+//-------------------------------------------------------------------------
+
+UCHAR FBM_GetPoolCurrent(UCHAR ucPoolType)
+{
+    if (ucPoolType == (UCHAR) FBM_POOL_TYPE_SCPOS_MAIN)
+    {
+        return (UCHAR) _eCurrentScposMain;
+    }
+    else if (ucPoolType == (UCHAR) FBM_POOL_TYPE_MJC_1)
+    {
+        return (UCHAR) _eCurrentMjc;
+    }
+
+    return ucPoolType;
+}
+
+
+//-------------------------------------------------------------------------
+/** FBM_PrintPoolInfo
+ *  Print FBM pool status
+ *  @return NONE
+ */
+//-------------------------------------------------------------------------
+VOID FBM_PrintPoolInfo(FBM_POOL_T* prPool, POOL_LIST_T* prPoolList)
+{
+    UCHAR ucIdx, ucLoop;
+
+    for (ucLoop = 0; ucLoop < 3; ucLoop++)
+    {
+        for (ucIdx = 0; ucIdx < (UINT32)FBM_POOL_TYPE_NS; ucIdx++)
+        {
+            if ((((ucLoop == 0) && (prPool[ucIdx].u4Size > 0))&&(prPool[ucIdx].u4Inherit!= FBM_POOL_ROOT)) ||
+                    (((ucLoop == 1) && (prPool[ucIdx].u4Size > 0))&&(prPool[ucIdx].u4Inherit == FBM_POOL_ROOT))||
+                    ((ucLoop == 2) && (prPool[ucIdx].u4Size == 0)))
+            {
+#ifdef FBM_PRINT_STATUS_TOTAL
+                LOG(1, "Addr(0x%08x) Size(0x%08x) Total (0x%08x) %s\n",
+                    prPool[ucIdx].u4Addr,
+                    prPool[ucIdx].u4Size,
+                    (prPool[ucIdx].u4Addr + prPool[ucIdx].u4Size),
+                    prPoolList[ucIdx].szName);
+#else
+                if (prPool[ucIdx].u4Size > 0)
+                {
+                    LOG(1, "Addr(0x%08x) Size(0x%08x) End(0x%08x) Mode(%c, 0x%08x, %04d, %04d) %s %s\n",
+                        prPool[ucIdx].u4Addr,
+                        prPool[ucIdx].u4Size,
+                        (prPool[ucIdx].u4Addr + prPool[ucIdx].u4Size),
+                        (prPool[ucIdx].u4Inherit == FBM_POOL_ROOT)?'R':'I',
+                        prPool[ucIdx].u4Mode,
+                        prPool[ucIdx].u4Width,
+                        prPool[ucIdx].u4Height,
+                        prPoolList[ucIdx].szName,
+                        prPool[ucIdx].fgAlloced ? "(Alloc)" : "");
+                }
+                else
+                {
+                    LOG(8, "Addr(0x%08x) Size(0x%08x) End(0x%08x) Mode(%c, 0x%08x, %04d, %04d) %s\n",
+                        prPool[ucIdx].u4Addr,
+                        prPool[ucIdx].u4Size,
+                        (prPool[ucIdx].u4Addr + prPool[ucIdx].u4Size),
+                        (prPool[ucIdx].u4Inherit == FBM_POOL_ROOT)?'R':'I',
+                        prPool[ucIdx].u4Mode,
+                        prPool[ucIdx].u4Width,
+                        prPool[ucIdx].u4Height,
+                        prPoolList[ucIdx].szName);
+                }
+#endif
+            }
+        }
+    }
+#if defined(CC_TRUSTZONE_SUPPORT) && defined(CC_SVP_SUPPORT)
+    for (ucIdx = 0; ucIdx < (UINT32)FBM_POOL_TYPE_TZ_NS; ucIdx++)
+    {
+        if (_arPoolTZ[ucIdx].u4Size > 0)
+        {
+            LOG(3, "[TrustZone]Addr(0x%08x) Size(0x%08x) End(0x%08x) %s %s\n",
+                    _arPoolTZ[ucIdx].u4Addr,
+                    _arPoolTZ[ucIdx].u4Size,
+                    (_arPoolTZ[ucIdx].u4Addr + _arPoolTZ[ucIdx].u4Size),
+                    (ucIdx == 0) ? "FBM_POOL_TYPE_TZ_DMX" : "FBM_POOL_TYPE_TZ_DMX2",
+                    _arPoolTZ[ucIdx].fgAlloced ? "(Alloc)" : "");
+                    
+        }
+    }
+#endif
+    LOG(1, "Current pool (SCPOS-M=%s, SCPOS-P=%s, MDDI-M=%s, MDDI-P=%s, TDC=%s)\n",
+        FBM_GetPoolName((UCHAR)_eCurrentScposMain),
+        FBM_GetPoolName((UCHAR)_eCurrentScposPip),
+        FBM_GetPoolName((UCHAR)_eCurrentMddiMain),
+        FBM_GetPoolName((UCHAR)_eCurrentMddiPip),
+        FBM_GetPoolName((UCHAR)_eCurrentTdc));
+
+    LOG(1, "Current pool (MJC=%s, VBI=%s)\n",
+        FBM_GetPoolName((UCHAR)_eCurrentMjc),
+        FBM_GetPoolName((UCHAR)_eCurrentVbi));
+
+#if defined(CC_MT5398) 
+	if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV)
+	{
+		LOG(1, "FBM_MEM_CFG_MT5398_3DTV Model\n");
+	}
+	if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV_NOSUB)
+	{
+		LOG(1, "FBM_MEM_CFG_MT5398_3DTV_NOSUB Model\n");
+	}
+	if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV)
+	{
+		LOG(1, "FBM_MEM_CFG_MT5398_2DTV Model\n");
+	}
+	if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV_NOSUB)
+	{
+		LOG(1, "FBM_MEM_CFG_MT5398_2DTV_NOSUB Model\n");
+	}
+	else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2)
+	{
+		LOG(1, "FBM_MEM_CFG_MT5398_A2 Model\n");
+	}
+#endif
+#if defined(CC_MT5880) 
+    if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2)
+	{
+		LOG(1, "FBM_MEM_CFG_MT5880_DDR3x2 Model\n");
+	}	
+   else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV)
+	{
+		LOG(1, "FBM_MEM_CFG_MT5880_3DTV Model\n");
+	}	
+	else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV_SHRINK)
+	{
+		LOG(1, "FBM_MEM_CFG_MT5880_3DTV_SHRINK Model\n");
+	}
+	if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1)
+	{
+		LOG(1, "FBM_MEM_CFG_MT5880_DDR3x1 Model\n");
+	}
+#endif
+    LOG(9, "0x%08x = FBM_POOL_MODE_8BIT\n", FBM_POOL_MODE_8BIT);
+    LOG(9, "0x%08x = FBM_POOL_MODE_9BIT\n", FBM_POOL_MODE_9BIT);
+    LOG(9, "0x%08x = FBM_POOL_MODE_10BIT\n", FBM_POOL_MODE_10BIT);
+    LOG(9, "0x%08x = FBM_POOL_MODE_C_10BIT\n", FBM_POOL_MODE_C_10BIT);
+    LOG(9, "0x%08x = FBM_POOL_MODE_420_FB\n", FBM_POOL_MODE_420_FB);
+    LOG(9, "0x%08x = FBM_POOL_MODE_422_FB\n", FBM_POOL_MODE_422_FB);
+    LOG(9, "0x%08x = FBM_POOL_MODE_444_FB\n", FBM_POOL_MODE_444_FB);
+    LOG(9, "0x%08x = FBM_POOL_MODE_SD\n", FBM_POOL_MODE_SD);
+    LOG(9, "0x%08x = FBM_POOL_MODE_720HD\n", FBM_POOL_MODE_720HD);
+    LOG(9, "0x%08x = FBM_POOL_MODE_1080HD\n", FBM_POOL_MODE_1080HD);
+    LOG(9, "0x%08x = FBM_POOL_MODE_SHARE\n", FBM_POOL_MODE_SHARE);
+    LOG(9, "0x%08x = FBM_POOL_MODE_TOGGLE_TRIGGER\n", FBM_POOL_MODE_TOGGLE_TRIGGER);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MPEG_NO_COMP\n", FBM_POOL_MODE_MPEG_NO_COMP);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MPEG_COMP_75\n", FBM_POOL_MODE_MPEG_COMP_75);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MPEG_COMP_50\n", FBM_POOL_MODE_MPEG_COMP_50);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MPEG_DBK\n", FBM_POOL_MODE_MPEG_DBK);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MJC_DROP\n", FBM_POOL_MODE_MJC_DROP);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MJC_NO_DROP\n", FBM_POOL_MODE_MJC_NO_DROP);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MJC_NO_COMP\n", FBM_POOL_MODE_MJC_NO_COMP);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MJC_Y_COMP4\n", FBM_POOL_MODE_MJC_Y_COMP4);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MJC_Y_COMP3\n", FBM_POOL_MODE_MJC_Y_COMP3);
+    LOG(9, "0x%08x = FBM_POOL_MODE_NR_3D_Y_C\n", FBM_POOL_MODE_NR_3D_Y_C);
+    LOG(9, "0x%08x = FBM_POOL_MODE_NR_3D_Y_ONLY\n", FBM_POOL_MODE_NR_3D_Y_ONLY);
+    LOG(9, "0x%08x = FBM_POOL_MODE_NR_2D\n", FBM_POOL_MODE_NR_2D);
+    LOG(9, "0x%08x = FBM_POOL_MODE_NR_BYPASS\n", FBM_POOL_MODE_NR_BYPASS);
+    LOG(9, "0x%08x = FBM_POOL_MODE_SCPOS_1FB\n", FBM_POOL_MODE_SCPOS_1FB);
+    LOG(9, "0x%08x = FBM_POOL_MODE_SCPOS_2FB\n", FBM_POOL_MODE_SCPOS_2FB);
+    LOG(9, "0x%08x = FBM_POOL_MODE_SCPOS_3FB\n", FBM_POOL_MODE_SCPOS_3FB);
+    LOG(9, "0x%08x = FBM_POOL_MODE_SCPOS_DISP\n", FBM_POOL_MODE_SCPOS_DISP);
+    LOG(9, "0x%08x = FBM_POOL_MODE_SCPOS_FULL\n", FBM_POOL_MODE_SCPOS_FULL);
+    LOG(9, "0x%08x = FBM_POOL_MODE_SCPOS_PSCAN_DISP\n", FBM_POOL_MODE_SCPOS_PSCAN_DISP);
+    LOG(9, "0x%08x = FBM_POOL_MODE_SCPOS_MJC_DISP\n", FBM_POOL_MODE_SCPOS_MJC_DISP);
+    LOG(9, "0x%08x = FBM_POOL_MODE_SCPOS_LINESYNC_DISP\n", FBM_POOL_MODE_SCPOS_LINESYNC_DISP);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MDDI_BOB\n", FBM_POOL_MODE_MDDI_BOB);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MDDI_FULL\n", FBM_POOL_MODE_MDDI_FULL);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MDDI_CBOB\n", FBM_POOL_MODE_MDDI_CBOB);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MDDI_NR_Y_C\n", FBM_POOL_MODE_MDDI_NR_Y_C);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MDDI_NR_Y_ONLY\n", FBM_POOL_MODE_MDDI_NR_Y_ONLY);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MDDI_NR_OFF\n", FBM_POOL_MODE_MDDI_NR_OFF);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MDDI_NR_10BIT\n", FBM_POOL_MODE_MDDI_NR_10BIT);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MDDI_COMP\n", FBM_POOL_MODE_MDDI_COMP);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MDDI_DISP\n", FBM_POOL_MODE_MDDI_DISP);
+    LOG(9, "0x%08x = FBM_POOL_MODE_MDDI_P2I\n", FBM_POOL_MODE_MDDI_P2I);
+    LOG(9, "0x%08x = FBM_TV_MODE_TYPE_NORMAL\n", FBM_TV_MODE_TYPE_NORMAL);
+    LOG(9, "0x%08x = FBM_TV_MODE_TYPE_PIP\n", FBM_TV_MODE_TYPE_PIP);
+    LOG(9, "0x%08x = FBM_TV_MODE_TYPE_POP\n", FBM_TV_MODE_TYPE_POP);
+
+    LOG(5, "NPTV Main Begin Addr:          0x%08x\n", _fbm_u4NptvBeAddr);
+    LOG(5, "NPTV Sub PIP Begin Addr:       0x%08x\n", _fbm_u4NptvSubPipAddr);
+    LOG(5, "NPTV Sub POP Begin Addr:       0x%08x\n", _fbm_u4NptvSubPopAddr);
+    LOG(5, "Main pip: (EndAddr,Size,Mode): 0x%08x, 0x%08x, 0x%08x\n", _FBM_NPTV_VideoRange.u4MainPipMaxEnd, _FBM_NPTV_VideoRange.u4MainPipMaxSize, _FBM_NPTV_VideoRange.u1MainPipMaxMode);
+    LOG(5, "Sub  pip: (EndAddr,Size,Mode): 0x%08x, 0x%08x, 0x%08x\n", _FBM_NPTV_VideoRange.u4SubPipMaxEnd, _FBM_NPTV_VideoRange.u4SubPipMaxSize, _FBM_NPTV_VideoRange.u1SubPipMaxMode);
+    LOG(5, "Main pop: (EndAddr,Size,Mode): 0x%08x, 0x%08x, 0x%08x\n", _FBM_NPTV_VideoRange.u4MainPopMaxEnd, _FBM_NPTV_VideoRange.u4MainPopMaxSize, _FBM_NPTV_VideoRange.u1MainPopMaxMode);
+    LOG(5, "Sub  pop: (EndAddr,Size,Mode): 0x%08x, 0x%08x, 0x%08x\n", _FBM_NPTV_VideoRange.u4SubPopMaxEnd, _FBM_NPTV_VideoRange.u4SubPopMaxSize, _FBM_NPTV_VideoRange.u1SubPopMaxMode);
+}
+
+//-------------------------------------------------------------------------
+/** FBM_ConfigurePool
+ *  Initialize this FBM pool
+ *  @retval NONE
+ */
+//-------------------------------------------------------------------------
+VOID FBM_ConfigurePool(POOL_LIST_T* prPoolList, POOL_ARRANGE_INFO_T* prPoolArrangeInfo)
+{
+#if defined(CC_MT5398)
+	 if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV)
+	 	||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_3DTV_NOSUB)
+	 	||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV)
+	 	||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_2DTV_NOSUB)
+		|| (SRMFBM_GetConf() == FBM_MEM_CFG_MT5398_A2)
+		)
+    {
+        _FbmConfigurePool_MT5398_MJC_SCPOS_MAIN(prPoolList, prPoolArrangeInfo);
+    }
+#endif
+#if defined(CC_MT5880)
+    if ((SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x2)
+		||(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV)
+		)
+    {
+		_FbmConfigurePool_MT5880_SCPOS_MAIN( prPoolList,prPoolArrangeInfo);
+	}
+	else if (SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_3DTV_SHRINK)
+    {
+		_FbmConfigurePool_MT5880_SCPOS_MAIN_3DTV( prPoolList,prPoolArrangeInfo);
+	}
+	else if(SRMFBM_GetConf() == FBM_MEM_CFG_MT5880_DDR3x1)
+	{
+		_FbmConfigurePool_MT5880_SCPOS_MAIN_DDRx1(prPoolList,prPoolArrangeInfo);
+	}
+#endif
+    else
+    {
+        VERIFY(0);
+    }
+}
+

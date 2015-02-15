@@ -1,0 +1,108 @@
+[alco]
+
+EXPORT = \
+        * \
+
+[lg]
+
+EXPORT = \
+        * \
+
+[yamaha]
+
+EXPORT = \
+        * \
+
+[samwin]
+
+EXPORT = \
+        * \
+
+[samsung]
+
+EXPORT = \
+        * \
+
+[philips]
+
+EXPORT = \
+        * \
+
+[liteon]
+
+EXPORT = \
+        * \
+
+[toshiba]
+
+EXPORT = \
+        * \
+                        
+[toshiba_tcl]
+
+EXPORT = \
+        * \
+
+[desay]
+
+EXPORT = \
+        * \
+
+[bbk]
+
+EXPORT = \
+        * \
+[harman]
+
+EXPORT = \
+        * \
+
+[foxconn]
+
+EXPORT = \
+        * \
+
+[sony]
+
+EXPORT = \
+        * \
+
+[qtec_denon]
+
+EXPORT = \
+         * \   
+         
+[sac]
+
+EXPORT = \
+         * \
+
+[base]
+
+EXPORT = \
+        * \
+
+[pioneer]
+
+EXPORT = \
+        * \
+
+[tcl]
+
+EXPORT = \
+        * \
+        
+[sdk_release]
+
+EXPORT = \
+        * \
+
+[panasonic]
+
+EXPORT = \
+        * \
+
+[panasonic8551]
+
+EXPORT = \
+        * \

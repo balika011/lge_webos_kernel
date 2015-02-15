@@ -1,0 +1,518 @@
+Archive member included because of file (symbol)
+
+/mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+                              /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o (__libc_csu_init)
+
+Discarded input sections
+
+ .note.GNU-stack
+                0x00000000        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+ .note.GNU-stack
+                0x00000000        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+ .note.GNU-stack
+                0x00000000        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+ .note.GNU-stack
+                0x00000000        0x0 /tmp/ccHl7LWy.o
+ .note.GNU-stack
+                0x00000000        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+ .note.GNU-stack
+                0x00000000        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtend.o
+ .note.GNU-stack
+                0x00000000        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crtn.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+*default*        0x00000000         0xffffffff
+
+Linker script and memory map
+
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+LOAD /tmp/ccHl7LWy.o
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/libgcc.a
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/../../../../armv7a-mediatek-linux-gnueabi/lib/libgcc_s.so
+START GROUP
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/../../../../armv7a-mediatek-linux-gnueabi/lib/libgcc_s.so.1
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/libgcc.a
+END GROUP
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc.so
+START GROUP
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/lib/libc.so.6
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/lib/ld-linux.so.3
+END GROUP
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/libgcc.a
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/../../../../armv7a-mediatek-linux-gnueabi/lib/libgcc_s.so
+START GROUP
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/../../../../armv7a-mediatek-linux-gnueabi/lib/libgcc_s.so.1
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/libgcc.a
+END GROUP
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtend.o
+LOAD /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crtn.o
+                0x00008000                PROVIDE (__executable_start, 0x8000)
+                0x00008154                . = (0x8000 + SIZEOF_HEADERS)
+
+.interp         0x00008154       0x13
+ *(.interp)
+ .interp        0x00008154       0x13 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+
+.note.ABI-tag   0x00008168       0x20
+ .note.ABI-tag  0x00008168       0x20 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+
+.note.gnu.build-id
+ *(.note.gnu.build-id)
+
+.hash           0x00008188       0x30
+ *(.hash)
+ .hash          0x00008188       0x30 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+
+.gnu.hash
+ *(.gnu.hash)
+
+.dynsym         0x000081b8       0x70
+ *(.dynsym)
+ .dynsym        0x000081b8       0x70 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+
+.dynstr         0x00008228       0x94
+ *(.dynstr)
+ .dynstr        0x00008228       0x94 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+
+.gnu.version    0x000082bc        0xe
+ *(.gnu.version)
+ .gnu.version   0x000082bc        0xe /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+
+.gnu.version_d  0x000082cc        0x0 load address 0x000082ca
+ *(.gnu.version_d)
+ .gnu.version_d
+                0x00000000        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+
+.gnu.version_r  0x000082cc       0x40
+ *(.gnu.version_r)
+ .gnu.version_r
+                0x000082cc       0x40 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+
+.rel.dyn        0x0000830c        0x8
+ *(.rel.init)
+ *(.rel.text .rel.text.* .rel.gnu.linkonce.t.*)
+ *(.rel.fini)
+ *(.rel.rodata .rel.rodata.* .rel.gnu.linkonce.r.*)
+ *(.rel.data.rel.ro* .rel.gnu.linkonce.d.rel.ro.*)
+ *(.rel.data .rel.data.* .rel.gnu.linkonce.d.*)
+ *(.rel.tdata .rel.tdata.* .rel.gnu.linkonce.td.*)
+ *(.rel.tbss .rel.tbss.* .rel.gnu.linkonce.tb.*)
+ *(.rel.ctors)
+ *(.rel.dtors)
+ *(.rel.got)
+ .rel.got       0x0000830c        0x8 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+ *(.rel.bss .rel.bss.* .rel.gnu.linkonce.b.*)
+ .rel.bss       0x00000000        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+                0x00008314                PROVIDE (__rel_iplt_start, .)
+ *(.rel.iplt)
+                0x00008314                PROVIDE (__rel_iplt_end, .)
+                0x00008314                PROVIDE (__rela_iplt_start, .)
+                0x00008314                PROVIDE (__rela_iplt_end, .)
+
+.rela.dyn       0x00008314        0x0
+ *(.rela.init)
+ *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+ *(.rela.fini)
+ *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+ *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
+ *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*)
+ *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*)
+ *(.rela.ctors)
+ *(.rela.dtors)
+ *(.rela.got)
+ *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+                0x00008314                PROVIDE (__rel_iplt_start, .)
+                0x00008314                PROVIDE (__rel_iplt_end, .)
+                0x00008314                PROVIDE (__rela_iplt_start, .)
+ *(.rela.iplt)
+                0x00008314                PROVIDE (__rela_iplt_end, .)
+
+.rel.plt        0x00008314       0x18
+ *(.rel.plt)
+ .rel.plt       0x00008314       0x18 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+
+.rela.plt
+ *(.rela.plt)
+
+.init           0x0000832c        0xc
+ *(.init)
+ .init          0x0000832c        0x8 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+                0x0000832c                _init
+ .init          0x00008334        0x4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crtn.o
+
+.plt            0x00008338       0x38
+ *(.plt)
+ .plt           0x00008338       0x38 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+                0x0000834c                abort@@GLIBC_2.4
+                0x00008358                __libc_start_main@@GLIBC_2.4
+
+.iplt
+ *(.iplt)
+
+.text           0x00008370      0x1b0
+ *(.text.unlikely .text.*_unlikely)
+ *(.text.exit .text.exit.*)
+ *(.text.startup .text.startup.*)
+ *(.text.hot .text.hot.*)
+ *(.text .stub .text.* .gnu.linkonce.t.*)
+ .text          0x00008370       0x3c /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+                0x00008370                _start
+ .text          0x000083ac       0x24 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+ .text          0x000083d0       0x4c /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+ .text          0x0000841c       0x98 /tmp/ccHl7LWy.o
+                0x0000841c                crypto_Init
+                0x00008424                crypto_Fin
+                0x0000842c                crypto_AesCbcofbEncrypt
+                0x00008434                crypto_AesCbcofbDecrypt
+                0x0000843c                crypto_GetRandomNumber
+                0x00008444                crypto_EcdsaGenerate
+                0x0000844c                crypto_EcdsaVerify
+                0x00008454                crypto_Ecdh
+                0x0000845c                crypto_Sha256Hash
+                0x00008464                crypto_GlobalInit
+                0x0000846c                crypto_GlobalFin
+                0x00008474                crypto_Cleanup
+                0x0000847c                crypto_SetMode
+                0x00008484                crypto_GetMode
+                0x0000848c                crypto_SetFixedRandomNumber
+                0x00008494                crypto_GetFixedRandomNumber
+                0x0000849c                crypto_SetFixedCast
+                0x000084a4                crypto_Ecdh1
+                0x000084ac                crypto_Ecdh2
+ .text          0x000084b4       0x6c /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+                0x000084b4                __libc_csu_init
+                0x0000851c                __libc_csu_fini
+ .text          0x00008520        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtend.o
+ .text          0x00008520        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crtn.o
+ *(.gnu.warning)
+ *(.glue_7t)
+ .glue_7t       0x00000000        0x0 linker stubs
+ *(.glue_7)
+ .glue_7        0x00000000        0x0 linker stubs
+ *(.vfp11_veneer)
+ .vfp11_veneer  0x00000000        0x0 linker stubs
+ *(.v4_bx)
+ .v4_bx         0x00000000        0x0 linker stubs
+
+.fini           0x00008520        0x8
+ *(.fini)
+ .fini          0x00008520        0x4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+                0x00008520                _fini
+ .fini          0x00008524        0x4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crtn.o
+                0x00008528                PROVIDE (__etext, .)
+                0x00008528                PROVIDE (_etext, .)
+                0x00008528                PROVIDE (etext, .)
+
+.rodata         0x00008528        0x4
+ *(.rodata .rodata.* .gnu.linkonce.r.*)
+ .rodata.cst4   0x00008528        0x4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+                0x00008528                _IO_stdin_used
+
+.rodata1
+ *(.rodata1)
+
+.ARM.extab      0x0000852c       0x18
+ *(.ARM.extab* .gnu.linkonce.armextab.*)
+ .ARM.extab     0x0000852c        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+ .ARM.extab     0x0000852c        0xc /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+ .ARM.extab     0x00008538        0x0 /tmp/ccHl7LWy.o
+ .ARM.extab     0x00008538        0xc /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+                0x00008544                PROVIDE (__exidx_start, .)
+
+.ARM.exidx      0x00008544       0x38
+ *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+ .ARM.exidx     0x00008544        0x8 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+ .ARM.exidx     0x0000854c       0x10 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+ .ARM.exidx     0x0000855c        0x8 /tmp/ccHl7LWy.o
+                                 0x98 (size before relaxing)
+ .ARM.exidx     0x00008564       0x18 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+                                 0x10 (size before relaxing)
+                0x0000857c                PROVIDE (__exidx_end, .)
+
+.eh_frame_hdr   0x0000857c       0x1c
+ *(.eh_frame_hdr)
+ .eh_frame_hdr  0x0000857c       0x1c /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+
+.eh_frame       0x00008598       0x48
+ *(.eh_frame)
+ .eh_frame      0x00008598       0x44 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+ .eh_frame      0x000085dc        0x4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtend.o
+
+.gcc_except_table
+ *(.gcc_except_table .gcc_except_table.*)
+                0x000085e0                . = (ALIGN (0x8000) - ((0x8000 - .) & 0x7fff))
+                0x000105e0                . = DATA_SEGMENT_ALIGN (0x8000, 0x1000)
+
+.eh_frame
+ *(.eh_frame)
+
+.gcc_except_table
+ *(.gcc_except_table .gcc_except_table.*)
+
+.tdata
+ *(.tdata .tdata.* .gnu.linkonce.td.*)
+
+.tbss
+ *(.tbss .tbss.* .gnu.linkonce.tb.*)
+ *(.tcommon)
+
+.preinit_array  0x000105e0        0x0
+                0x000105e0                PROVIDE (__preinit_array_start, .)
+ *(.preinit_array)
+                0x000105e0                PROVIDE (__preinit_array_end, .)
+
+.init_array     0x000105e0        0x4
+                0x000105e0                PROVIDE (__init_array_start, .)
+ *(SORT(.init_array.*))
+ *(.init_array)
+ .init_array    0x000105e0        0x4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+                0x000105e4                PROVIDE (__init_array_end, .)
+
+.fini_array     0x000105e4        0x4
+                0x000105e4                PROVIDE (__fini_array_start, .)
+ *(SORT(.fini_array.*))
+ *(.fini_array)
+ .fini_array    0x000105e4        0x4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+                0x000105e8                PROVIDE (__fini_array_end, .)
+
+.ctors
+ *crtbegin.o(.ctors)
+ *crtbegin?.o(.ctors)
+ *(EXCLUDE_FILE(*crtend?.o *crtend.o) .ctors)
+ *(SORT(.ctors.*))
+ *(.ctors)
+
+.dtors
+ *crtbegin.o(.dtors)
+ *crtbegin?.o(.dtors)
+ *(EXCLUDE_FILE(*crtend?.o *crtend.o) .dtors)
+ *(SORT(.dtors.*))
+ *(.dtors)
+
+.jcr            0x000105e8        0x4
+ *(.jcr)
+ .jcr           0x000105e8        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+ .jcr           0x000105e8        0x4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtend.o
+
+.data.rel.ro
+ *(.data.rel.ro.local* .gnu.linkonce.d.rel.ro.local.*)
+ *(.data.rel.ro* .gnu.linkonce.d.rel.ro.*)
+
+.dynamic        0x000105ec       0xf0
+ *(.dynamic)
+ .dynamic       0x000105ec       0xf0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+                0x000105ec                _DYNAMIC
+                0x000106dc                . = DATA_SEGMENT_RELRO_END (., 0x0)
+
+.got            0x000106dc       0x1c
+ *(.got.plt)
+ .got.plt       0x000106dc       0x18 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+                0x000106dc                _GLOBAL_OFFSET_TABLE_
+ *(.igot.plt)
+ *(.got)
+ .got           0x000106f4        0x4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+ *(.igot)
+
+.data           0x000106f8        0x8
+                0x000106f8                PROVIDE (__data_start, .)
+ *(.data .data.* .gnu.linkonce.d.*)
+ .data          0x000106f8        0x4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+                0x000106f8                data_start
+                0x000106f8                __data_start
+ .data          0x000106fc        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+ .data          0x000106fc        0x4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+                0x000106fc                __dso_handle
+ .data          0x00010700        0x0 /tmp/ccHl7LWy.o
+ .data          0x00010700        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+ .data          0x00010700        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtend.o
+ .data          0x00010700        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crtn.o
+
+.data1
+ *(.data1)
+                0x00010700                _edata = .
+                0x00010700                PROVIDE (edata, .)
+                0x00010700                __bss_start = .
+                0x00010700                __bss_start__ = .
+
+.bss            0x00010700        0x4
+ *(.dynbss)
+ .dynbss        0x00000000        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+ *(.bss .bss.* .gnu.linkonce.b.*)
+ .bss           0x00010700        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+ .bss           0x00010700        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+ .bss           0x00010700        0x1 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+ .bss           0x00010701        0x0 /tmp/ccHl7LWy.o
+ .bss           0x00010701        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+ .bss           0x00010701        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtend.o
+ .bss           0x00010701        0x0 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crtn.o
+ *(COMMON)
+                0x00010704                . = ALIGN ((. != 0x0)?0x4:0x1)
+ *fill*         0x00010701        0x3 00
+                0x00010704                _bss_end__ = .
+                0x00010704                __bss_end__ = .
+                0x00010704                . = ALIGN (0x4)
+                0x00010704                . = ALIGN (0x4)
+                0x00010704                __end__ = .
+                0x00010704                _end = .
+                0x00010704                PROVIDE (end, .)
+                0x00010704                . = DATA_SEGMENT_END (.)
+
+.stab
+ *(.stab)
+
+.stabstr
+ *(.stabstr)
+
+.stab.excl
+ *(.stab.excl)
+
+.stab.exclstr
+ *(.stab.exclstr)
+
+.stab.index
+ *(.stab.index)
+
+.stab.indexstr
+ *(.stab.indexstr)
+
+.ARM.attributes
+                0x00000000       0x31
+ .ARM.attributes
+                0x00000000       0x31 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+ .ARM.attributes
+                0x00000031       0x33 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+ .ARM.attributes
+                0x00000064       0x33 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+ .ARM.attributes
+                0x00000097       0x2b /tmp/ccHl7LWy.o
+ .ARM.attributes
+                0x000000c2       0x33 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+ .ARM.attributes
+                0x000000f5       0x33 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtend.o
+ .ARM.attributes
+                0x00000128       0x33 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crtn.o
+
+.comment        0x00000000       0x11
+ *(.comment)
+ .comment       0x00000000       0x11 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+                                 0x12 (size before relaxing)
+ .comment       0x00000000       0x12 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crti.o
+ .comment       0x00000000       0x12 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtbegin.o
+ .comment       0x00000000       0x12 /tmp/ccHl7LWy.o
+ .comment       0x00000000       0x12 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+ .comment       0x00000000       0x12 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../lib/gcc/armv7a-mediatek-linux-gnueabi/4.5.1/crtend.o
+ .comment       0x00000000       0x12 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crtn.o
+
+.debug
+ *(.debug)
+
+.line
+ *(.line)
+
+.debug_srcinfo
+ *(.debug_srcinfo .zdebug_srcinfo)
+
+.debug_sfnames
+ *(.debug_sfnames .zdebug_sfnames)
+
+.debug_aranges  0x00000000       0x60
+ *(.debug_aranges .zdebug_aranges)
+ .debug_aranges
+                0x00000000       0x20 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+ .debug_aranges
+                0x00000020       0x20 /tmp/ccHl7LWy.o
+ .debug_aranges
+                0x00000040       0x20 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+
+.debug_pubnames
+                0x00000000      0x217
+ *(.debug_pubnames .zdebug_pubnames)
+ .debug_pubnames
+                0x00000000       0x25 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+ .debug_pubnames
+                0x00000025      0x1b8 /tmp/ccHl7LWy.o
+ .debug_pubnames
+                0x000001dd       0x3a /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+
+.debug_info     0x00000000      0x708
+ *(.debug_info .gnu.linkonce.wi.* .zdebug_info)
+ .debug_info    0x00000000       0xfc /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+ .debug_info    0x000000fc      0x4e1 /tmp/ccHl7LWy.o
+ .debug_info    0x000005dd      0x12b /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+
+.debug_abbrev   0x00000000      0x238
+ *(.debug_abbrev .zdebug_abbrev)
+ .debug_abbrev  0x00000000       0x56 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+ .debug_abbrev  0x00000056      0x10e /tmp/ccHl7LWy.o
+ .debug_abbrev  0x00000164       0xd4 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+
+.debug_line     0x00000000      0x385
+ *(.debug_line .zdebug_line)
+ .debug_line    0x00000000       0x85 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+ .debug_line    0x00000085      0x234 /tmp/ccHl7LWy.o
+ .debug_line    0x000002b9       0xcc /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+
+.debug_frame    0x00000000      0x184
+ *(.debug_frame .zdebug_frame)
+ .debug_frame   0x00000000      0x140 /tmp/ccHl7LWy.o
+ .debug_frame   0x00000140       0x44 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+
+.debug_str      0x00000000      0x44e
+ *(.debug_str .zdebug_str)
+ .debug_str     0x00000000       0x96 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+                                 0xd6 (size before relaxing)
+ .debug_str     0x00000096      0x34e /tmp/ccHl7LWy.o
+                                0x3eb (size before relaxing)
+ .debug_str     0x000003e4       0x6a /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+                                 0xb3 (size before relaxing)
+
+.debug_loc      0x00000000      0x1a3
+ *(.debug_loc .zdebug_loc)
+ .debug_loc     0x00000000      0x10a /tmp/ccHl7LWy.o
+ .debug_loc     0x0000010a       0x99 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+
+.debug_macinfo
+ *(.debug_macinfo .zdebug_macinfo)
+
+.debug_weaknames
+ *(.debug_weaknames .zdebug_weaknames)
+
+.debug_funcnames
+ *(.debug_funcnames .zdebug_funcnames)
+
+.debug_typenames
+ *(.debug_typenames .zdebug_typenames)
+
+.debug_varnames
+ *(.debug_varnames .zdebug_varnames)
+
+.debug_pubtypes
+                0x00000000       0x7a
+ *(.debug_pubtypes .zdebug_pubtypes)
+ .debug_pubtypes
+                0x00000000       0x12 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/crt1.o
+ .debug_pubtypes
+                0x00000012       0x4b /tmp/ccHl7LWy.o
+ .debug_pubtypes
+                0x0000005d       0x1d /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+
+.debug_ranges   0x00000000       0x18
+ *(.debug_ranges .zdebug_ranges)
+ .debug_ranges  0x00000000       0x18 /mtkoss/gnuarm/vfp_4.5.1_2.6.27_cortex-a9-rhel4_002/i686/bin/../sysroot/usr/lib/libc_nonshared.a(elf-init.oS)
+
+.gnu.attributes
+ *(.gnu.attributes)
+
+.note.gnu.arm.ident
+ *(.note.gnu.arm.ident)
+
+/DISCARD/
+ *(.note.GNU-stack)
+ *(.gnu_debuglink)
+ *(.gnu.lto_*)
+OUTPUT(/proj/mtk94078/tv_linux/DTV/DEV_BR/e_IDTV0801_LINUX_002223_9_001_36_HBBTV_BR/vm_linux/project_x/target/mt53xx_com/tz_secure/drm/iptves_sec/outside/crypto_api_iptves elf32-littlearm)

@@ -1,0 +1,13 @@
+[build_linux_ko]
+
+build.inf:
+
+    SOURCES += ir_cmd.c \
+               ir_decode.c\
+       
+               
+               
+
+               
+   
+   

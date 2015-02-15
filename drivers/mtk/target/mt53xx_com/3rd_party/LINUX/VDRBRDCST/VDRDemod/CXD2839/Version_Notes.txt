@@ -1,0 +1,514 @@
+2012-6-18: Kota.Yonezawa@jp.sony.com
+
+VENDOR_DRIVER_VER: "2012-06-18\nCXD2839Ver1.0"
+Description:
+
+    porting to MTK MT5396 turnkey
+
+    Modified file(s):
+          all
+
+
+2012-6-27: Kota.Yonezawa@jp.sony.com
+
+VENDOR_DRIVER_VER: "CXD2839_2012-06-27_CXD2839Ver1.1"
+Description:
+
+    As we know, tune sequence (DVBS_TunerAcq) detect "Break" from middleware
+    by calling _BreakFct function passed as argument of DVBS_TunerAcq function.
+    To call _BreakFct from Sony internal driver, we uses
+    g_sonysat_demod_ctx.breakFct
+    g_sonysat_demod_ctx.breakFctArg
+    variables to store _BreakFct and pvArg temporary.
+    These pointer should be used ONLY in tuning sequence.
+
+    But the driver was not correct and DiSEqC function also call break function via above pointer variables.
+    And then the DiSEqC function stops before completion.
+
+    So, we updated the driver to clear above pointer variables at the exit of DVBS_TunerAcq
+    to prevent to call break function from DiSEqC functions.
+    We added the following description (pd_dvbs_glue.c l.1305)
+
+    // Clear break function pointer
+    g_sonysat_demod_ctx.breakFct = NULL;
+    g_sonysat_demod_ctx.breakFctArg = NULL;
+
+    Modified file(s):
+          pd_dvbs_glue.c
+
+
+2012-7-25: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER: "CXD2839_2012-07-25_CXD2839Ver1.2"
+Description:
+
+    Update CXD2839 driver as follows.
+
+      - Fixed bug for BlindScan API.
+        - Frequency of detected channel has some gap.
+        - Scan time is longer than our expectation.
+        - Update the progress calculation.
+      - Modified interface of LNBC driver.
+        - Added SetConfig API.
+        - Removed configFlags parameter from Create API.
+      - Add state check in the driver.
+      - Update some register settings
+        - However it is not affected to mediatek's usage.
+      - Update comments in source code.
+
+    Added file(s):
+          sonysat_demod_driver_version.h
+
+    Modified file(s): (* is small modification)
+          intersil_isl9492.c
+          intersil_isl9492.h
+          pd_dvbs_glue.c
+          sonysat_demod.c (*)
+          sonysat_demod.h (*)
+          sonysat_demod_dvbs_s2.c
+          sonysat_demod_dvbs_s2_blindscan.c
+          sonysat_demod_dvbs_s2_blindscan.h (*)
+          sonysat_demod_dvbs_s2_blindscan_algo.c (*)
+          sonysat_demod_dvbs_s2_blindscan_algo.h (*)
+          sonysat_demod_dvbs_s2_blindscan_data.h (*)
+          sonysat_demod_dvbs_s2_blindscan_seq.c
+          sonysat_demod_dvbs_s2_blindscan_seq.h (*)
+          sonysat_demod_dvbs_s2_blindscan_subseq_bt.h (*)
+          sonysat_demod_dvbs_s2_blindscan_subseq_cs.c
+          sonysat_demod_dvbs_s2_blindscan_subseq_cs.h (*)
+          sonysat_demod_dvbs_s2_blindscan_subseq_fs.c
+          sonysat_demod_dvbs_s2_blindscan_subseq_fs.h (*)
+          sonysat_demod_dvbs_s2_blindscan_subseq_pm.h (*)
+          sonysat_demod_dvbs_s2_blindscan_subseq_ss.h (*)
+          sonysat_demod_dvbs_s2_blindscan_trace.h (*)
+          sonysat_demod_dvbs_s2_blindscan_utility.h (*)
+          sonysat_demod_dvbs_s2_tune_srs_seq.c
+          sonysat_demod_dvbs_s2_tune_srs_seq.h (*)
+          sonysat_demod_sat_device_ctrl.c (*)
+          sonysat_demod_sat_device_ctrl.h (*)
+          sonysat_diseqc_command_1_0.c (*)
+          sonysat_diseqc_command_1_0.h (*)
+          sonysat_diseqc_command_1_1.h (*)
+          sonysat_diseqc_command_1_2.h (*)
+          sonysat_diseqc_command_2_0.h (*)
+          sonysat_diseqc_command_2_2.h (*)
+          sonysat_horus3a.c (*)
+          sonysat_horus3a.h (*)
+          sonysat_integ.c (*)
+          sonysat_integ.h (*)
+          sonysat_integ_dvbs_s2.c
+          sonysat_integ_dvbs_s2.h (*)
+          sonysat_integ_sat_device_ctrl.c (*)
+          sonysat_integ_sat_device_ctrl.h (*)
+          sonysat_lnbc.h
+          sonysat_singlecable_command.h (*)
+          sonysat_tuner_horus3a.c (*)
+          sonysat_tuner_horus3a.h (*)
+
+    Removed file(s):
+          sonysat_demod_driver_version.c
+
+
+2012-8-28: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER: "CXD2839_2012-08-28_CXD2839Ver1.3"
+Description:
+
+    Update CXD2839 driver as follows.
+          Update for adding CXD2842 (DVB-T/T2/C/S/S2) support.
+
+    Modified file(s):
+          pd_dvbs_glue.c
+          sonysat_demod.c
+          sonysat_demod.h
+          sonysat_demod_driver_version.h  (Updated version number.)
+          sonysat_demod_dvbs_s2.c
+          sonysat_integ.h                 (Modification about only comments.)
+          sonysat_integ_sat_device_ctrl.c (Modification not be affected to MTK.)
+
+    NOTE: "CC_SONYDEMOD_CXD2842" macro should be defined if this driver is used for CXD2842.
+          Please ensure that MTK upper layer NEVER activate (connect) both terrestrial and
+          satellite SW module at same time.
+
+
+2012-9-24: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER: "CXD2839_2012-09-24_CXD2839Ver1.4"
+Description:
+
+    Update CXD2839 driver as follows.
+          Optimize sequence for transmitting DiSEqC message.
+          Update comment in source code.
+
+    Modified file(s):
+          pd_dvbs_glue.c
+          sonysat_demod.c
+          sonysat_demod.h
+          sonysat_demod_driver_version.h
+          sonysat_demod_dvbs_s2.c
+          sonysat_demod_sat_device_ctrl.c
+          sonysat_demod_sat_device_ctrl.h
+          sonysat_integ_sat_device_ctrl.c
+          sonysat_integ_sat_device_ctrl.h
+
+2012-11-27: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER: "CXD2839_2012-11-27_CXD2839Ver1.5"
+Description:
+
+    Update CXD2839 driver as follows.
+          Update glue layer for supporting unicable.
+          Update for common part.(No affect to this glue layer)
+
+    Modified file(s):
+          pd_dvbs_glue.c
+          pd_dvbs_templ_if.h
+          sonysat_integ_sat_device_ctrl.c
+
+    Following files are updated, too. But it doesn't affect to the behavior.
+          sonysat_demod.c
+          sonysat_demod.h
+          sonysat_demod_driver_version.h
+          sonysat_demod_dvbs_s2.c
+          sonysat_demod_dvbs_s2_blindscan.c
+          sonysat_demod_dvbs_s2_blindscan_seq.c
+          sonysat_demod_dvbs_s2_monitor.c
+          sonysat_demod_dvbs_s2_tune_srs_seq.c
+          sonysat_demod_sat_device_ctrl.c
+
+2012-12-06: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER: "CXD2839_2012-12-07_CXD2839Ver1.6"
+Description:
+
+    Update CXD2839/CXD2842 driver as follows.
+          Add the sequence which confirm to stop TS by ODU_PowerOff command.
+          Terrestrial <-> Satellite switching code was modified for CXD2842.
+            Checks demod register and confirm that re-initialization is necessary or not.
+
+    Modified file(s):
+          pd_dvbs_glue.c
+
+
+2012-12-07: haibo.li@mediatek.com
+
+VENDOR_DRIVER_VER: "CXD2839_2012-12-07_CXD2839Ver1.7"
+Description:
+
+     1.rename pd_dvbs_tmp_if.h as pd_dvbs_cxd2839_if.h to avoid file name conflict in future
+     2.Get connection mode from Util_GetConnMode instead refer to pt_tuner_info->e_conn_mode
+     3.Correct build fail(line 928:change ui1_control_mask to ui4_control_mask)
+     4.Add parameter check(DVBS_ValidateMwPara)
+    Modified file(s):
+          pd_dvbs_glue.c
+
+2012-12-10: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER: "CXD2839_2012-12-10_CXD2839Ver1.8"
+Description:
+
+     Fixed a bug to return error at
+       "call tune with specified symbol rate after tune with auto symbol rate search" and
+       "call tune with auto symbol rate search after tune with specified symbol rate".
+
+    Modified file(s):
+          pd_dvbs_glue.c (only version number)
+          sonysat_demod.c
+
+2012-12-17: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER: "CXD2839_2012-12-17_CXD2839Ver1.9"
+Description:
+
+    Change I2C access to repeater from gateway.
+
+    Modified file(s):
+          pd_dvbs_glue.c
+          sonysat_demod.c
+
+2012-12-19: haibo.li@mediatek.com
+
+VENDOR_DRIVER_VER:"CXD2839Ver2.0"
+Description:
+
+      1.replace mcDBG_MSG_INFO with mcDBG_MSG_L1 to disable to many message
+      2.update the frequency as valid one before and after blind scan
+    Modified file(s):
+          pd_dvbs_glue.c
+
+2012-12-19: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER:"CXD2839_2012-12-19_CXD2839Ver2.1"
+Description:
+
+    Add intersil_isl9492_MonitorOLF to monitor OLF bit in ISL9492.
+       OLF
+           0: No current limit detected.
+           1: Current limit detected in the linear regulator.
+
+    Modified file(s):
+          pd_dvbs_glue.c (only version number)
+          intersil_isl9492.h
+          intersil_isl9492.c
+
+2012-12-21: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER:"CXD2839_2012-12-21_CXD2839Ver2.2"
+Description:
+
+    Add MonitorOverload API to sonysat_lnbc_t struct.
+
+    Modified file(s):
+          pd_dvbs_glue.c (only version number)
+          sonysat_lnbc.h
+          intersil_isl9492.c
+          intersil_isl9492.h
+2012-12-29: haibo.li@mediatek.com
+
+VENDOR_DRIVER_VER:"CXD2839_2012-12-29_CXD2839Ver2.3"
+Description:
+
+    Add interface to provide LNB short information
+
+    Modified file(s):
+          pd_dvbs_glue.c
+
+2013-01-17:zhilin@mediatek.com
+
+VENDOR_DRIVER_VER:"CXD2839_2013-01-17_CXD2839Ver2.4"
+Description:
+
+    Add the fuction of DVBS system detection.
+
+    Modified file(s):
+        1.pd_dvbs_glue.c
+
+2013-02-26: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER:"CXD2839_2013-02-26_CXD2839Ver2.5"
+Description:
+
+    Update driver to 1.09(from 1.07).
+    Support HORUS3 tuner.
+
+    Added file(s):
+        sonysat_horus3.c
+        sonysat_horus3.h
+        sonysat_tuner_horus3.c
+        sonysat_tuner_horus3.h
+
+    Modified file(s):
+        Makefile
+        pd_dvbs_glue.c
+        sonysat_demod.c
+        sonysat_demod_dvbs_s2.c
+        sonysat_demod_dvbs_s2_monitor.c
+        sonysat_demod_sat_device_ctrl.c
+        sonysat_horus3a.c
+
+2013-03-21: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER:"CXD2839_2013-03-21_CXD2839Ver2.6"
+Description:
+
+    Add ZE221/PE221/PE231 module support.
+
+    Modified file(s):
+        Makefile
+        pd_dvbs_glue.c
+
+    NOTE: SONYSAT_TUNERMODULE_ZE221/SONYSAT_TUNERMODULE_PE221/SONYSAT_TUNERMODULE_PE231
+          should be defined correctly.
+          SONYSAT_TUNERMODULE_ZE221 is now defined in Makefile.
+
+2013-03-22: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER:"CXD2839_2013-03-22_CXD2839Ver2.7"
+Description:
+
+    Fixed the problem that can't use ZE221 module.
+
+    Modified file(s):
+        pd_dvbs_glue.c
+
+2013-04-12: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER:"CXD2839_2013-04-12_CXD2839Ver2.8"
+Description:
+
+    Support for CXD2841 by "#define CC_SONYDEMOD_CXD2841"
+    Fixed bug to return error at serial TS output.
+    Fixed bug at DiSEqC2 setting.
+    Add MP8126(MPS) LNBC driver.
+        Currently, MP8126 is default LNBC.
+        If you change it to ISL9492, please modify Makefile as below.
+
+        - Remove
+            DEFINES += -DSONYSAT_LNBC_MPS_MP8126
+        - Add
+            DEFINES += -DSONYSAT_LNBC_INTERSIL_ISL9492
+
+    Modified file(s):
+        pd_dvbs_glue.c
+        sonysat_demod.c
+        sonysat_demod.h
+        sonysat_demod_dvbs_s2.c
+        sonysat_demod_sat_device_ctrl.c
+
+    Added file(s):
+        mps_mp8126.c
+        mps_mp8126.h
+
+2013-05-08: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER:"CXD2839_2013-05-08_CXD2839Ver2.9"
+Description:
+
+    Updated driver to 1.11(from 1.09).
+    Updated the MP8126 driver as official release.
+    Modified some comments in source code.
+
+    Modified file(s):
+        mps_mp8126.c
+        mps_mp8126.h
+        pd_dvbs_glue.c
+        sonysat_demod.c
+        sonysat_demod.h
+        sonysat_demod_driver_version.h
+        sonysat_demod_dvbs_s2.c
+        sonysat_demod_dvbs_s2_monitor.h
+        sonysat_demod_dvbs_s2_tune_srs.h
+        sonysat_integ_dvbs_s2.h
+        sonysat_integ_sat_device_ctrl.c
+        sonysat_integ_sat_device_ctrl.h
+        sonysat_singlecable_command.h
+
+2013-08-01: xiongfeng.wen@mediatek.com
+
+VENDOR_DRIVER_VER:"CXD2839_2013-05-08_CXD2839Ver2.10"
+Description:
+        add Modulation,Rolloff,coderate to notify to MW
+    Modified file(s):
+         pd_dvbs_glue.c
+         sonysat_demod_dvbs_s2_monitor.c
+         sonysat_demod_dvbs_s2_monitor.h
+
+2013-08-13: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER:"CXD2839_2013-08-13_CXD2839Ver2.11"
+Description:
+
+    Update driver to 1.12(from 1.11).
+    Add RSSI monitor function. (TUNER_GET_TYPE_RSSI)
+
+    Modified file(s):
+        pd_dvbs_glue.c
+        sonysat_demod_driver_version.h
+        sonysat_horus3.c
+        sonysat_horus3.h
+        sonysat_horus3a.c
+        sonysat_horus3a.h
+
+VENDOR_DRIVER_VER:"CXD2839_2013-08-23_CXD2839Ver2.12"
+Description:
+
+    Add SQI monitor function as TENTATIVE. (TUNER_GET_TYPE_SQI_2)
+    Modify code for customize DiSEqC timing.
+
+    Modified file(s):
+        pd_dvbs_glue.c
+        sonysat_demod_driver_version.h
+        sonysat_integ_sat_device_ctrl.c
+        sonysat_integ_sat_device_ctrl.h
+
+VENDOR_DRIVER_VER:"CXD2839_2013-08-28_CXD2839Ver2.13"
+Description:
+
+    Add UEC (Uncorrected Error Count) as TUNER_GET_TYPE_UEC.
+    The range of UEC is "0 <= UEC <= 9999".
+
+    Modified file(s):
+        pd_dvbs_glue.c
+
+VENDOR_DRIVER_VER:"CXD2839_2013-10-15_CXD2839Ver2.14"
+Description:
+
+    Merged codes from the latest MTK software.
+      - Demod_GPIO_Reset()
+      - get_userband()
+    Update driver to V1.14RC1.
+      - Add LNBH29 driver.
+    Fix a bug not transmit ODU_PowerOFF command in DVBS_OduPowerOff().
+    Fix a bug trouble when stop scan.
+
+    Modified file(s):
+        Makefile
+        pd_dvbs_glue.c
+        sonysat_demod.c
+        sonysat_demod.h
+        sonysat_demod_driver_version.h
+        sonysat_demod_dvbs_s2_blindscan_subseq_pm.c
+        sonysat_demod_dvbs_s2_monitor.c
+        sonysat_integ_dvbs_s2.c
+        sonysat_integ_sat_device_ctrl.c
+        sonysat_singlecable_command.c
+        sonysat_singlecable_command.h
+    Added files(s):
+        st_lnbh29.c
+        st_lnbh29.h
+
+VENDOR_DRIVER_VER:"CXD2839_2013-10-21_CXD2839Ver2.15"
+Description:
+
+    Add DVBS_TunerSetFreqSkip() function.
+
+    Modified file(s):
+        pd_dvbs_glue.c
+
+VENDOR_DRIVER_VER:"CXD2839_2013-10-25_CXD2839Ver2.16"
+Description:
+
+    Updated SQI monitor function.
+    Added A8304 LNBC driver.
+
+    Modified file(s):
+        pd_dvbs_glue.c
+
+    Added file(s):
+        allegro_a8304.c
+        allegro_a8304.h
+
+VENDOR_DRIVER_VER:"CXD2839_2013-12-09_CXD2839Ver2.17"
+Description:
+
+    Update driver to V1.15.
+    The unit of "_pSignal->SymbolRate" at DVBS_TunerGetSignal() API changed to "Sps" from "KSps".
+
+    Modified file(s):
+        pd_dvbs_glue.c
+        sonysat_demod.h
+        sonysat_demod_dvbs_s2_blindscan_subseq_bt.c
+        sonysat_demod_dvbs_s2_monitor.c
+        sonysat_demod_dvbs_s2_monitor.h
+        sonysat_dvbs2.h
+
+VENDOR_DRIVER_VER:"CXD2839_2014-01-14_CXD2839Ver2.18"
+Description:
+
+    Fixed bug to reset GPIO setting when driver state changes from Terr/Cable.
+
+    Modified file(s):
+        pd_dvbs_glue.c
+        sonysat_demod.c
+
+VENDOR_DRIVER_VER:"CXD2839_2014-01-15_CXD2839Ver2.19"
+Description:
+
+    Adjust capture range for "Auto symbol rate tune".
+    Support unicable collision detection.
+
+    Modified file(s):
+        pd_dvbs_glue.c
+        sonysat_demod_dvbs_s2_tune_srs_seq.c
+        sonysat_integ_sat_device_ctrl.c
+        sonysat_integ_sat_device_ctrl.h

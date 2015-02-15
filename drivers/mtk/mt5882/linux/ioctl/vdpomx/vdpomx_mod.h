@@ -1,0 +1,63 @@
+/********************************************************************************************
+ *     LEGAL DISCLAIMER 
+ *
+ *     (Header of MediaTek Software/Firmware Release or Documentation)
+ *
+ *     BY OPENING OR USING THIS FILE, BUYER HEREBY UNEQUIVOCALLY ACKNOWLEDGES AND AGREES 
+ *     THAT THE SOFTWARE/FIRMWARE AND ITS DOCUMENTATIONS ("MEDIATEK SOFTWARE") RECEIVED 
+ *     FROM MEDIATEK AND/OR ITS REPRESENTATIVES ARE PROVIDED TO BUYER ON AN "AS-IS" BASIS 
+ *     ONLY. MEDIATEK EXPRESSLY DISCLAIMS ANY AND ALL WARRANTIES, EXPRESS OR IMPLIED, 
+ *     INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR 
+ *     A PARTICULAR PURPOSE OR NONINFRINGEMENT. NEITHER DOES MEDIATEK PROVIDE ANY WARRANTY 
+ *     WHATSOEVER WITH RESPECT TO THE SOFTWARE OF ANY THIRD PARTY WHICH MAY BE USED BY, 
+ *     INCORPORATED IN, OR SUPPLIED WITH THE MEDIATEK SOFTWARE, AND BUYER AGREES TO LOOK 
+ *     ONLY TO SUCH THIRD PARTY FOR ANY WARRANTY CLAIM RELATING THERETO. MEDIATEK SHALL ALSO
+ *     NOT BE RESPONSIBLE FOR ANY MEDIATEK SOFTWARE RELEASES MADE TO BUYER'S SPECIFICATION 
+ *     OR TO CONFORM TO A PARTICULAR STANDARD OR OPEN FORUM.
+ *     
+ *     BUYER'S SOLE AND EXCLUSIVE REMEDY AND MEDIATEK'S ENTIRE AND CUMULATIVE LIABILITY WITH 
+ *     RESPECT TO THE MEDIATEK SOFTWARE RELEASED HEREUNDER WILL BE, AT MEDIATEK'S OPTION, 
+ *     TO REVISE OR REPLACE THE MEDIATEK SOFTWARE AT ISSUE, OR REFUND ANY SOFTWARE LICENSE 
+ *     FEES OR SERVICE CHARGE PAID BY BUYER TO MEDIATEK FOR SUCH MEDIATEK SOFTWARE AT ISSUE. 
+ *     
+ *     THE TRANSACTION CONTEMPLATED HEREUNDER SHALL BE CONSTRUED IN ACCORDANCE WITH THE LAWS 
+ *     OF THE STATE OF CALIFORNIA, USA, EXCLUDING ITS CONFLICT OF LAWS PRINCIPLES.  
+ ************************************************************************************************/
+/*
+*
+* $Author: p4admin $
+* $Modtime: $
+* $Revision: #1 $
+*
+*/
+
+// *********************************************************************
+// Memo
+// *********************************************************************
+/*
+*/
+
+#ifndef _VDPOMX_MOD_H_
+#define _VDPOMX_MOD_H_
+
+//#include <x_rm.h>
+
+#include "drv_common.h"
+#include "vdpomx_drv_if.h"
+
+
+int vdp_set_out_region(VDPOMX_SET_REGION_PARM_T *prParm);
+int vdp_set_src_region(VDPOMX_SET_REGION_PARM_T *prParm);
+int vdp_set_out_channel(VDPOMX_SET_CHANNEL_PARM_T *prParm);
+int vdp_set_display_buf(VDPOMX_SET_DISPLAY_BUF_PARM_T *prParm);
+int vdp_get_channel_free(VDPOMX_GET_CHANNEL_FREE_PARM_T *prParm);
+int vdp_get_buf_locked(VDPOMX_GET_BUF_LOCKED_PARM_T *prParm);
+//int vdp_tunnel_connect_audio(VDPOMX_TUNNEL_CONNECT_AUD_PARM_T *prParm);
+//int vdp_connect_vdec(VDPOMX_CONNECT_VDEC_PARM_T *prParm);
+int vdp_srm_settvmode(unsigned long arg);
+
+#endif //#ifndef _VDPOMX_MOD_H_
+
+
+
+

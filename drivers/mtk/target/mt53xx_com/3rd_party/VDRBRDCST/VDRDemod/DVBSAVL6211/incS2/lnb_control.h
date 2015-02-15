@@ -1,0 +1,9 @@
+#ifndef _LNB_CONTROL_H_
+#define _LNB_CONTROL_H_
+
+VOID AVL_DVBS2_LNB_Power_OnOff(UCHAR nIsOn);
+VOID AVL_DVBS2_LNB_Control_14or18V(UCHAR nIs14);
+VOID AVL_DVBS2_LNB_Control_15or19V(UCHAR nIs15);
+UCHAR AVL_Get_22k_Configration_by_LNBType(VOID);
+#endif
+

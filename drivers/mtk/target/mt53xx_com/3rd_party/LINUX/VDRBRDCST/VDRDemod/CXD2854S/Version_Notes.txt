@@ -1,0 +1,241 @@
+2014-02-28: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.01 (2014-02-28)"
+Description:
+
+    First release.
+
+    Modified file(s):
+      all
+
+2014-03-03: Takafumi.Asahara@jp.sony.com
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.02 (2014-03-03)"
+Description:
+
+    Modified to select crystal frequency by build option.
+    There is following description in Makefile.
+
+      #DEFINES += -DSONYSAT_DEMOD_CRYSTAL_41M
+      DEFINES += -DSONYSAT_DEMOD_CRYSTAL_24M
+      #DEFINES += -DSONYSAT_DEMOD_CRYSTAL_20_5M
+
+    Please uncomment only one line which you use.
+
+    Modified file(s):
+      Makefile
+      pd_dvbs_glue.c
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.03 (2014-03-12)"
+Description:
+
+    Modified to select "Common" and "Sony Project" by build option.
+    If you defined "CC_PROJECT_FOR_SONY" in Makefile, 
+    you can use this driver as "Sony Project".
+
+    Add overcurrent monitor API to each LNBC driver.
+
+    Modified file(s):
+      allegro_a8304.c
+      pd_dvbs_glue.c
+      sonysat_integ_sat_device_ctrl.c
+      sonysat_lnbc.h
+      st_lnbh29.c
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.04 (2014-03-18)"
+Description:
+
+    Fixed some compile error.
+
+    Modified file(s):
+      pd_dvbs_glue.c
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.05 (2014-04-15)"
+Description:
+
+    Update CXD2854 driver to V1.03.
+      From this version, lock range of TuneSRS (auto symbol rate tune)
+      changes +/-5MHz from +/-10MHz.
+
+    Support for I2C gateway for tuner.
+    If you want to use I2C gateway for tuner,
+    please add CC_SONYDEMOD_I2CGATEWAY to build option.
+
+    Modified file(s):
+      allegro_a8304.c
+      pd_dvbs_glue.c
+      Makefile
+      sonysat_demod.c
+      sonysat_demod.h
+      sonysat_demod_driver_version.h
+      sonysat_demod_dvbs_s2_blindscan.c
+      sonysat_demod_dvbs_s2_blindscan_algo.c
+      sonysat_demod_dvbs_s2_blindscan_seq.c
+      sonysat_demod_dvbs_s2_blindscan_subseq_bt.c
+      sonysat_demod_dvbs_s2_blindscan_subseq_cs.c
+      sonysat_demod_dvbs_s2_blindscan_subseq_fs.c
+      sonysat_demod_dvbs_s2_blindscan_subseq_pm.c
+      sonysat_demod_dvbs_s2_blindscan_subseq_ss.c
+      sonysat_demod_dvbs_s2_blindscan_utility.c
+      sonysat_demod_dvbs_s2_monitor.c
+      sonysat_demod_dvbs_s2_tune_srs.h
+      sonysat_demod_dvbs_s2_tune_srs_seq.c
+      sonysat_demod_sat_device_ctrl_detect_cw_seq.c
+      sonysat_demod_sat_device_ctrl_find1ub_seq.c
+      sonysat_diseqc_command_1_2.c
+      sonysat_integ_dvbs_s2.c
+      sonysat_integ_sat_device_ctrl.c
+      sonysat_singlecable_command.c
+      st_lnbh29.c
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.06 (2014-04-30)"
+Description:
+    Support tuner module include HELENE.
+    When you use HELENE, please define SONYSAT_TUNERMODULE_HELENE in Makefile.
+    And, you have to include HELENE driver in Terr/Cable side, too.
+    (Because, satellite driver use HELENE driver in terr/cable driver.)
+
+    Modified file(s):
+      Makefile
+      pd_dvbs_glue.c
+      sonysat_integ_sat_device_ctrl.c
+
+    Added file(s):
+      sonysat_tuner_helene.c
+      sonysat_tuner_helene.h
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.07 (2014-05-22)"
+Description:
+    Support LNBC A8303-1.
+    If you use A8303-1, please define SONYSAT_LNBC_ALLEGRO_A8303_1 in Makefile.
+
+    Modified file(s):
+      Makefile
+      pd_dvbs_glue.c
+      sonysat_integ_sat_device_ctrl.c
+      sonysat_tuner_helene.c
+      sonysat_tuner_helene.h
+
+    Added file(s):
+      allegro_a8303_1.c
+      allegro_a8303_1.h
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.08 (2014-06-16)"
+Description:
+    Removed the code related to "Canal Digital issue" and "Access to EEPROM".
+      Because MTK members are discussing about this issue and it will be modified.
+    Support for double tuner.
+    Add a command to control BlindScan log in CLI.
+      nim.dtd bl [p|c]
+        This command toggle 2 log output.
+        p: power spectrum (default:disable)
+        c: candidate      (default:disable)
+
+    Modified file(s):
+      Makefile
+      pd_dvbs_glue.c
+      sonysat_common.h
+      sonysat_demod.c
+      sonysat_demod.h
+      sonysat_i2c.h
+      sonysat_i2c_MTK.c
+      sonysat_i2c_MTK.h
+
+    Added file(s):
+      sonysat_tuner_helene_MTK.c
+      sonysat_tuner_helene_MTK.h
+
+    Removed files(s):
+      sonysat_tuner_helene.c
+      sonysat_tuner_helene.h
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.09 (2014-06-23)"
+Description:
+    Modified sonysat_DVBS_GetUnicableState to support double tuner
+    for "Not Sony project".
+
+    Modified file(s):
+      Makefile
+      pd_dvbs_glue.c
+      sonysat_demod_dvbs_s2_blindscan_trace.h
+      sonysat_integ_sat_device_ctrl.c
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.10 (2014-06-26)"
+Description:
+    Fixed bug in HELENE driver.
+
+    Modified file(s):
+      pd_dvbs_glue.c
+      sonysat_tuner_helene_MTK.c
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.12 (2014-07-28)"
+Description:
+
+    Merge codes from the driver which MTK modified.
+      Including codes related to canal digital code.(eeprom)
+    Add TSD monitor function to A8303_1 driver.
+    CLI support add some functions.
+      Power spectrum mode.
+      Change LPF setting for power spectrum.
+    Modified additional wait time for specific pilot off signal in BlindScan and TuneSRS.
+
+    Modified file(s):
+      allegro_a8303_1.c
+      allegro_a8304.c
+      Makefile
+      mps_mp8126.c
+      pd_dvbs_glue.c
+      sonysat_demod.c
+      sonysat_demod_driver_version.h
+      sonysat_demod_dvbs_s2.h
+      sonysat_demod_dvbs_s2_blindscan.c
+      sonysat_demod_dvbs_s2_blindscan.h
+      sonysat_demod_dvbs_s2_blindscan_seq.c
+      sonysat_demod_dvbs_s2_blindscan_seq.h
+      sonysat_demod_dvbs_s2_blindscan_subseq_bt.c
+      sonysat_demod_dvbs_s2_blindscan_subseq_bt.h
+      sonysat_demod_dvbs_s2_blindscan_subseq_ss.c
+      sonysat_demod_dvbs_s2_blindscan_subseq_ss.h
+      sonysat_demod_dvbs_s2_monitor.c
+      sonysat_demod_dvbs_s2_monitor.h
+      sonysat_demod_dvbs_s2_tune_srs_seq.c
+      sonysat_demod_sat_device_ctrl_detect_cw_seq.c
+      sonysat_demod_sat_device_ctrl_find1ub_seq.c
+      sonysat_demod_sat_device_ctrl_find1ub_seq.h
+      sonysat_diseqc_command_1_1.h
+      sonysat_dvbs.h
+      sonysat_dvbs2.h
+      sonysat_integ.c
+      sonysat_integ.h
+      sonysat_integ_dvbs_s2.c
+      sonysat_integ_dvbs_s2.h
+      sonysat_integ_sat_device_ctrl.c
+      sonysat_integ_sat_device_ctrl.h
+      sonysat_lnbc.h
+      sonysat_tuner_helene_MTK.c
+      sonysat_tuner_helene_MTK.h
+      sonysat_tuner_horus3.c
+      sonysat_tuner_horus3a.c
+      sonysat_tuner_sat.h
+      st_lnbh29.c
+
+
+VENDOR_DRIVER_VER: "CXD2854 (DVB-S/S2) v0.13 (2014-07-31)"
+Description:
+
+    Demod Shutdown and REFOUT OFF was added.
+    Please call SetAttribute(TUNER_SET_TYPE_DEMOD_SHUTDOWN) after TunerDisc call.
+    Sony internal reference driver code was updated.
+    For Sakura modules (serial TS), TSDATA pin Hi-Z setting is disabled for necessary pin only.
+
+    Modified file(s):
+      pd_dvbs_glue.c
+      sonysat_common.h
+      sonysat_demod.c
+      sonysat_demod.h
+      sonysat_demod_dvbs_s2.c
+      sonysat_demod_dvbs_s2_monitor.c
+      sonysat_demod_dvbs_s2_monitor.h
+      sonysat_integ.c
+
+

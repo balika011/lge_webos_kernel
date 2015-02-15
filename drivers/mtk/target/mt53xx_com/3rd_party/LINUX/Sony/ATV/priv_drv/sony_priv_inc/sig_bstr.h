@@ -1,0 +1,37 @@
+#ifndef _SIG_BSTR_
+#define _SIG_BSTR_
+
+
+enum{
+    EEP_OFFSET_EMCS_SIG_BSTR_DRV_CS     = (EEP_OFFSET_EMCS_SIG_BSTR_START),       /*0x2A00,            1 byte*/
+    EEP_OFFSET_EMCS_LNA_WAIT_TIME       = (EEP_OFFSET_EMCS_SIG_BSTR_DRV_CS + 1),  /*0x2A01,            1 byte*/
+    EEP_OFFSET_EMCS_LNA_WAIT_TIME2      = (EEP_OFFSET_EMCS_LNA_WAIT_TIME + 1),    /*0x2A02,            1 byte*/
+    EEP_OFFSET_EMCS_LNA_AGC_TH          = (EEP_OFFSET_EMCS_LNA_WAIT_TIME2 + 1),   /*0x2A03,            1 byte*/
+    EEP_OFFSET_EMCS_LNA_SNR_TH          = (EEP_OFFSET_EMCS_LNA_AGC_TH + 1),       /*0x2A04,            2 byte*/
+    EEP_OFFSET_EMCS_LNA_SN_DIFF_TH      = (EEP_OFFSET_EMCS_LNA_SNR_TH + 2)       /*0x2A06,            1 byte*/
+};
+
+enum{
+    /*NVM related SREG*/
+    SREG_SIG_BSTR_LNA_WAIT_TIME,
+    SREG_SIG_BSTR_LNA_WAIT_TIME2,
+    SREG_SIG_BSTR_LNA_AGC_TH,
+    SREG_SIG_BSTR_LNA_SNR_TH,
+    SREG_SIG_BSTR_LNA_SN_DIFF_TH,
+    SREG_SIG_BSTR_NVM, //dummy
+    /*SREG for HW*/
+    SREG_SIG_BSTR_IFAGC,
+    SREG_SIG_BSTR_CVBS_SNR1,
+    SREG_SIG_BSTR_CVBS_SNR2,
+    SREG_SIG_BSTR_CVBS_SNR3,
+    /*SREG status only*/
+    SREG_SIG_BSTR_LNA_SET,
+    SREG_SIG_BSTR_SNR1,
+    SREG_SIG_BSTR_SNR2,
+    SREG_SIG_BSTR_SNR_DIFF,
+    SREG_SIG_BSTR_CALC_AGC_TH,
+
+    SREG_SIG_BSTR_MAX
+};
+
+#endif

@@ -1,0 +1,402 @@
+/*----------------------------------------------------------------------------*
+ * Copyright Statement:                                                       *
+ *                                                                            *
+ *   This software/firmware and related documentation ("MediaTek Software")   *
+ * are protected under international and related jurisdictions'copyright laws *
+ * as unpublished works. The information contained herein is confidential and *
+ * proprietary to MediaTek Inc. Without the prior written permission of       *
+ * MediaTek Inc., any reproduction, modification, use or disclosure of        *
+ * MediaTek Software, and information contained herein, in whole or in part,  *
+ * shall be strictly prohibited.                                              *
+ * MediaTek Inc. Copyright (C) 2010. All rights reserved.                     *
+ *                                                                            *
+ *   BY OPENING THIS FILE, RECEIVER HEREBY UNEQUIVOCALLY ACKNOWLEDGES AND     *
+ * AGREES TO THE FOLLOWING:                                                   *
+ *                                                                            *
+ *   1)Any and all intellectual property rights (including without            *
+ * limitation, patent, copyright, and trade secrets) in and to this           *
+ * Software/firmware and related documentation ("MediaTek Software") shall    *
+ * remain the exclusive property of MediaTek Inc. Any and all intellectual    *
+ * property rights (including without limitation, patent, copyright, and      *
+ * trade secrets) in and to any modifications and derivatives to MediaTek     *
+ * Software, whoever made, shall also remain the exclusive property of        *
+ * MediaTek Inc.  Nothing herein shall be construed as any transfer of any    *
+ * title to any intellectual property right in MediaTek Software to Receiver. *
+ *                                                                            *
+ *   2)This MediaTek Software Receiver received from MediaTek Inc. and/or its *
+ * representatives is provided to Receiver on an "AS IS" basis only.          *
+ * MediaTek Inc. expressly disclaims all warranties, expressed or implied,    *
+ * including but not limited to any implied warranties of merchantability,    *
+ * non-infringement and fitness for a particular purpose and any warranties   *
+ * arising out of course of performance, course of dealing or usage of trade. *
+ * MediaTek Inc. does not provide any warranty whatsoever with respect to the *
+ * software of any third party which may be used by, incorporated in, or      *
+ * supplied with the MediaTek Software, and Receiver agrees to look only to   *
+ * such third parties for any warranty claim relating thereto.  Receiver      *
+ * expressly acknowledges that it is Receiver's sole responsibility to obtain *
+ * from any third party all proper licenses contained in or delivered with    *
+ * MediaTek Software.  MediaTek is not responsible for any MediaTek Software  *
+ * releases made to Receiver's specifications or to conform to a particular   *
+ * standard or open forum.                                                    *
+ *                                                                            *
+ *   3)Receiver further acknowledge that Receiver may, either presently       *
+ * and/or in the future, instruct MediaTek Inc. to assist it in the           *
+ * development and the implementation, in accordance with Receiver's designs, *
+ * of certain softwares relating to Receiver's product(s) (the "Services").   *
+ * Except as may be otherwise agreed to in writing, no warranties of any      *
+ * kind, whether express or implied, are given by MediaTek Inc. with respect  *
+ * to the Services provided, and the Services are provided on an "AS IS"      *
+ * basis. Receiver further acknowledges that the Services may contain errors  *
+ * that testing is important and it is solely responsible for fully testing   *
+ * the Services and/or derivatives thereof before they are used, sublicensed  *
+ * or distributed. Should there be any third party action brought against     *
+ * MediaTek Inc. arising out of or relating to the Services, Receiver agree   *
+ * to fully indemnify and hold MediaTek Inc. harmless.  If the parties        *
+ * mutually agree to enter into or continue a business relationship or other  *
+ * arrangement, the terms and conditions set forth herein shall remain        *
+ * effective and, unless explicitly stated otherwise, shall prevail in the    *
+ * event of a conflict in the terms in any agreements entered into between    *
+ * the parties.                                                               *
+ *                                                                            *
+ *   4)Receiver's sole and exclusive remedy and MediaTek Inc.'s entire and    *
+ * cumulative liability with respect to MediaTek Software released hereunder  *
+ * will be, at MediaTek Inc.'s sole discretion, to replace or revise the      *
+ * MediaTek Software at issue.                                                *
+ *                                                                            *
+ *   5)The transaction contemplated hereunder shall be construed in           *
+ * accordance with the laws of Singapore, excluding its conflict of laws      *
+ * principles.  Any disputes, controversies or claims arising thereof and     *
+ * related thereto shall be settled via arbitration in Singapore, under the   *
+ * then current rules of the International Chamber of Commerce (ICC).  The    *
+ * arbitration shall be conducted in English. The awards of the arbitration   *
+ * shall be final and binding upon both parties and shall be entered and      *
+ * enforceable in any court of competent jurisdiction.                        *
+ *---------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------
+ *
+ * $Author: p4admin $
+ * $Date: 2015/02/15 $
+ * $RCSfile: board.c,v $
+ * $Revision: #1 $
+ *
+ *---------------------------------------------------------------------------*/
+
+/** @file board.c
+ *  Board-related rountines.
+ */
+
+
+//-----------------------------------------------------------------------------
+// Include files
+//-----------------------------------------------------------------------------
+
+#include "board.h"
+#include "hal.h"
+#include "x_os.h"
+#include "x_assert.h"
+#include "x_bim.h"
+#include "x_hal_926.h"
+#include "x_ckgen.h"
+#include "x_pinmux.h"
+#include "c_model.h"
+#include <linux/module.h>
+#include <linux/version.h>
+#include <linux/init.h>
+#include <asm/io.h>
+#include <linux/semaphore.h>
+#include <mach/mt53xx_linux.h>
+
+
+//-----------------------------------------------------------------------------
+// Constant definitions
+//-----------------------------------------------------------------------------
+
+#define FPGA_SYSTEM_CLOCK			20000000	// 20M Hz system clock
+
+#define REG_PSR_CTRL                0x200001f0
+#define PSR_CTRL_PCKE               (1 << 1)
+
+#define REG_IC_VERSION              0x20000000
+
+#define SIGNAL_MSG_NUM              15
+
+#ifndef CC_DRIVER_PROGRAM
+#define CC_DRIVER_PROGRAM           0
+#endif /* CC_DRIVER_PROGRAM */
+
+#ifndef NOR_FLASH_LOADER_SIZE
+#define NOR_FLASH_LOADER_SIZE             (128*1024)
+#endif
+
+//-----------------------------------------------------------------------------
+// Public functions
+//-----------------------------------------------------------------------------
+
+/*----------------------------------------------------------------------------
+ * Function: BSP_IsFPGA
+ *
+ * Description:
+ *      Check if current platform if FPGA or not
+ *
+ * Inputs: -
+ *
+ * Outputs: -
+ *
+ * Returns:
+ *      TRUE: FPGA
+ *      FALSE: IC
+ *---------------------------------------------------------------------------*/
+BOOL BSP_IsFPGA(void)
+{
+    UINT32 u4Val;
+
+    /* If there is FPGA ID, it must be FPGA, too. */
+    u4Val = BIM_READ32(REG_RO_FPGA_ID);
+    if (u4Val != 0) { return 1; }
+
+    /* otherwise, it's not FPGA. */
+    return 0;
+}
+
+/*----------------------------------------------------------------------------
+ * Function: BSP_GetIcVersion
+ *
+ * Description:
+ *      Get IC version
+ *
+ * Inputs: -
+ *
+ * Outputs: -
+ *
+ * Returns:
+ *      The IC version, or IC_VER_FPGA if running in a FPGA platform, or
+ *      IC_VER_UNKOWN for unknown IC version
+ *---------------------------------------------------------------------------*/
+IC_VERSION_T BSP_GetIcVersion(void)
+{
+    return (IC_VERSION_T)mt53xx_get_ic_version();
+}
+
+void BSP_HaltSystem(void)
+{
+    panic("BSP_HaltSystem\n");
+}
+
+//-----------------------------------------------------------------------------
+/** BSP_GetSystemClock() Get system clock
+ *  @return The system clock
+ */
+//-----------------------------------------------------------------------------
+UINT32 BSP_GetSystemClock(void)
+{
+    if (BSP_IsFPGA())
+    {
+        return FPGA_SYSTEM_CLOCK;
+    }
+    else
+    {
+        return GET_XTAL_CLK();
+    }
+}
+
+//-----------------------------------------------------------------------------
+/** BSP_GetFbmMemAddr()
+ *  @return the frame buffer start address
+ */
+//-----------------------------------------------------------------------------
+UINT32 BSP_GetFbmMemAddr()
+{
+    return FBM_START_PHY_ADDR;
+}
+
+//-----------------------------------------------------------------------------
+/** BSP_GetPQDataOffset()
+ *  No one should use it in Linux.
+ */
+//-----------------------------------------------------------------------------
+UINT32 BSP_GetPQDataOffset()
+{
+    ASSERT(0);
+    return 0;
+}
+
+//-----------------------------------------------------------------------------
+/* _BoardInit Board-related initializations
+ */
+//-----------------------------------------------------------------------------
+
+void __init BSP_InitBoard(void)
+{
+    BSP_CkgenInit();
+}
+#ifdef CC_SUPPORT_STR
+#define P_Fld(val,fld) ((sizeof(upk)>1)?Fld2Msk32(fld):(((UINT32)(val)&((1<<Fld_wid(fld))-1))<<Fld_shft(fld)))
+void CHIP_CPU_Resume(void)
+{
+    vIO32WriteFldMulti(CKGEN_CPU_CKCFG, P_Fld(6,FLD_BUS_CK_SEL)|P_Fld(1,FLD_CPU_CK_SEL));
+}
+void CHIP_CPU_Suspend(void)
+{                                                                                         
+    // set CPU/BUS/SRAM to xtal before PLL setting
+    vIO32WriteFldMulti(CKGEN_CPU_CKCFG, P_Fld(0,FLD_BUS_CK_SEL)|P_Fld(0,FLD_CPU_CK_SEL));
+
+}
+#endif
+
+#ifdef CC_SUPPORT_STR_CORE_OFF
+// copy from project_x/target/mt5881/5881_driver/bsp/board.c
+struct timer_saves {
+    UINT32 timer[3][2];
+    UINT32 timerLimit[3][2];
+    UINT32 timeControl;
+};
+static struct timer_saves timerInfo;
+#ifdef CC_MT5890
+static u64 arch_pcnt;
+static u64 arch_pcnt_0, arch_pcnt_1, arch_pcnt_2;
+u64 mt53xx_read_local_timer(void);
+void mt53xx_write_local_timer(u64 cnt);
+#endif
+
+void Board_pm_suspend(void)
+{
+    int i;
+    UINT32 state;
+    
+    state = HalCriticalStart();
+
+#ifdef CC_MT5890
+    arch_pcnt = mt53xx_read_local_timer();
+#if 0
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt);
+    arch_pcnt -= 0x10000000;
+    mt53xx_write_local_timer(arch_pcnt);
+    arch_pcnt = mt53xx_read_local_timer();
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt);
+    arch_pcnt = mt53xx_read_local_timer();
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt);
+
+    arch_pcnt -= 0x10000000;
+    mt53xx_write_local_timer(arch_pcnt);
+    arch_pcnt = mt53xx_read_local_timer();
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt);
+    arch_pcnt = mt53xx_read_local_timer();
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt);
+
+    arch_pcnt = 0;
+    mt53xx_write_local_timer(arch_pcnt);
+    arch_pcnt = mt53xx_read_local_timer();
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt);
+    arch_pcnt = mt53xx_read_local_timer();
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt);
+
+    arch_pcnt = 0;
+    mt53xx_write_local_timer(arch_pcnt);
+    arch_pcnt = mt53xx_read_local_timer();
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt);
+    arch_pcnt = mt53xx_read_local_timer();
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt);
+#endif
+#endif
+
+    timerInfo.timeControl = BIM_READ32(REG_RW_TIMER_CTRL);
+
+    // Temporary stop timer.
+    BIM_WRITE32(REG_RW_TIMER_CTRL, 0);
+
+    for (i=0; i<3; i++)
+    {
+        timerInfo.timer[i][0] = BIM_READ32(REG_RW_TIMER0_LOW + i*8);
+        timerInfo.timer[i][1] = BIM_READ32(REG_RW_TIMER0_HIGH + i*8);
+        timerInfo.timerLimit[i][0] = BIM_READ32(REG_RW_TIMER0_LLMT + i*8);
+#ifdef CONFIG_SMP
+	if (i == 1)
+	{
+	    timerInfo.timerLimit[i][0] = 0;
+	}
+#endif
+        timerInfo.timerLimit[i][1] = BIM_READ32(REG_RW_TIMER0_HLMT + i*8);
+#ifdef CONFIG_SMP
+	if (i == 1)
+	{
+	    timerInfo.timerLimit[i][1] = 0;
+	}
+#endif
+    }
+
+    // Start again.
+    BIM_WRITE32(REG_RW_TIMER_CTRL, timerInfo.timeControl);
+
+    HalCriticalEnd(state);
+}
+
+void Board_pm_resume(void)
+{
+    int i;
+    UINT32 state;
+    
+    state = HalCriticalStart();
+
+    // Temporary stop timer.
+    BIM_WRITE32(REG_RW_TIMER_CTRL, 0);
+
+    for (i=0; i<3; i++)
+    {
+        BIM_WRITE32(REG_RW_TIMER0_LOW + i*8, timerInfo.timer[i][0]);
+        BIM_WRITE32(REG_RW_TIMER0_HIGH + i*8, timerInfo.timer[i][1]);
+        BIM_WRITE32(REG_RW_TIMER0_LLMT + i*8, timerInfo.timerLimit[i][0]);
+        BIM_WRITE32(REG_RW_TIMER0_HLMT + i*8, timerInfo.timerLimit[i][1]);
+    }
+
+    // Start again.
+    BIM_WRITE32(REG_RW_TIMER_CTRL, timerInfo.timeControl);
+
+#ifdef CC_MT5890
+    arch_pcnt_0 = mt53xx_read_local_timer();
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt_0);
+    mt53xx_write_local_timer(arch_pcnt);
+    arch_pcnt_1 = mt53xx_read_local_timer();
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt_1);
+    arch_pcnt_2 = mt53xx_read_local_timer();
+    printk("(yjdbg) arch_pcnt: 0x%llx\n", arch_pcnt_2);
+#endif
+    
+    HalCriticalEnd(state);
+
+    BSP_CkgenInit();
+}
+#endif
+
+#if defined(CC_SUPPORT_STR_CORE_OFF) && !defined(CC_MTK_LOADER) && !defined(CC_UBOOT)
+// copy from project_x/target/mt5881/5881_driver/bsp/bim_if.c
+//-----------------------------------------------------------------------------
+/** BIM_pm_suspend()
+ *  Suspend function, save IRQ enable setting.
+ */
+//-----------------------------------------------------------------------------
+static UINT32 aBimSuspendSaves[4];
+void BIM_pm_suspend(void)
+{
+    aBimSuspendSaves[0] = BIM_REG32(REG_RW_MISC);
+    aBimSuspendSaves[1] = BIM_REG32(REG_IRQEN);
+    aBimSuspendSaves[2] = BIM_REG32(REG_MISC_IRQEN);
+#ifdef REG_MISC2_IRQEN
+    aBimSuspendSaves[3] = BIM_REG32(REG_MISC2_IRQEN);
+#endif
+}
+
+//-----------------------------------------------------------------------------
+/** BIM_pm_suspend()
+ *  Resume function, restore IRQ settings
+ */
+//-----------------------------------------------------------------------------
+void BIM_pm_resume(void)
+{
+    BIM_REG32(REG_RW_MISC) = aBimSuspendSaves[0];
+    BIM_REG32(REG_IRQEN) = aBimSuspendSaves[1];
+    BIM_REG32(REG_MISC_IRQEN) = aBimSuspendSaves[2];
+#ifdef REG_MISC2_IRQEN
+    BIM_REG32(REG_MISC2_IRQEN) = aBimSuspendSaves[3];
+#endif
+}
+#endif /* CC_SUPPORT_STR_CORE_OFF && !loader && !uboot */

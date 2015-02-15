@@ -1,0 +1,22 @@
+file list: //20080404
+	  Pd_AnaApi.c                         pd_anaeu_glue.c         pd_anaeu_picommonapi.h  PI_ATuner.c
+dtos40a   Pd_AnaApi.h                         pd_anaeu_glue.h         PD_ATuner.h             PI_ATuner.h
+Makefile  pd_anaeu_dtos40a_picommonapi_reg.c  pd_anaeu_picommonapi.c  pi_anaeu_if.h           todo_LC
+
+//refine job: 20080404
+1. refine pd_anaeu_glue.c
+    -- remove unused code, remove compile flag(fcADD_ACQ_CHK, fcNew_ANA_PIPD_ARCH)
+    -- mark API as public or static
+2. try to remove file PI_ATuner.c PI_ATuner.h PD_ATuner.h Pd_AnaApi.c Pd_AnaApi.h
+    -- remove unused code
+    -- move pi related definition/API to dtos40a/*
+    -- move pd related definition to pd_anaeu_glue.c.h
+3. refine dtos40a/piana_dtos40a.c piana_dtos40a.h
+    -- remove unused code, old arch. code
+    -- try separate I2c access interface code to another file
+    -- rename file name start with "PD" or "Pd" to "pd"
+    -- mark API as public or static
+4. apply c_file_template h_file_template to dtos40a/* , pd_anae_glue.c.h
+5. review pd_anaeu_picommonapi.h common API parameters
+6. add tuner pi directory, eng37e, fqd1116, tdqg4
+

@@ -1,0 +1,11 @@
+[build_linux_ko]
+
+build.inf:
+
+    SOURCES += irrx_if.c \
+               ir_hw.c \
+                    
+    DIRS = \
+         bd \
+   
+   

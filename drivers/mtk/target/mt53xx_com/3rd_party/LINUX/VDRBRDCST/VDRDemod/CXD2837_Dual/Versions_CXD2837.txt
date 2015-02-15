@@ -1,0 +1,353 @@
+v0.1: 
+MTK Wenming 2012-6-29:Bring up OK version(for MT5398/96/89, DTV/ATV ok)
+
+v0.2:
+AEC 2012-07-04.
+According to MTK Wenming-san suggestion:
+"CXD2837 Driver£¬should to complete the APIs which absent compare with CXD2834,
+in functions DVBT2_TunerDVBT2Command()and DVBT2_TunerGetAttribute2()."
+
+AEC work:
+
+    In function DVBT2_TunerGetAttribute2,
+    added item: TUNER_GET_TYPE_AGC item
+                            TUNER_GET_TYPE_DBM_SNR
+                            TUNER_GET_TYPE_DVBT2_PLP
+    In function DVBT2_TunerDVBT2Command,
+    for CLI item "s"
+                            changed OFDMinfo.mode display
+                            changed PLPInfo.constell display
+                            added FEC header display
+                            added L1Pre display
+                            added L1Post display
+
+SONY 2012-07-04
+  Tuner register settings are updated.
+    (sonyrf_ascot2e.c/h, sonyrf_ascot2e_re227.c/h)
+  RE227_TunerOP(itGetSSIIndex) should be added.
+    (pi_tuner_re227.c)
+
+  RB221 driver for CXD2837 is added.
+  The code is based on RE227 code.
+  The difference between RB221 and RE227 module is that RB221 has AntSW.
+  So, RB221_TunerOP(itSetInCableMode) is added to switch AntSW for analog.
+  (It's same as RB221 driver for ISDB-T.)
+
+
+v0.3
+SONY 2012-07-11
+T2 bug fix.
+This bug has effect when the system go out from DVB-T2.
+
+  Modified file: sony_demod_dvbt2.c
+                 AT2toSLT function.
+
+v0.4:
+MTK wenming 2012-07
+Add flag to decide reset demod or not.
+Modified file: pd_glue_dvbt2.c
+
+
+v0.5
+SONY 2012-07-17
+Add small modification for glue file.
+ - Clearing break function pointer at the exit of the TunerAcq.
+   (This is same modification for CXD2839 code. It's not affect to behavior but fixed for safe.)
+ - RF level monitor OFF. (Not necessary for Sony silicon tuner.)
+ - Small modification for Sony side debug.
+
+   Modified file: pd_glue_dvbt2.c
+
+Tuner code are updated for ES2 silicon tuner.
+
+   Modified file: sonyre227/pi_tuner_re227.c
+                  sonyre227/sonyrf_ascot2e.c/h
+                  sonyre227/sonyrf_ascot2e_re227.c
+                  sonyrb221/pi_tuner_rb221.c
+                  sonyrb221/sonyrf_ascot2e.c/h
+                  sonyrb221/sonyrf_ascot2e_rb221.c
+
+
+v0.6
+SONY 2012-07-25
+Adding DVB-C SQI and SSI function to glue file.
+NOTE: The formula using these functions is not formal. Defined by Sony.
+
+   Modified file: pd_glue_dvbt2.c
+
+
+v0.7
+SONY 2012-07-26
+Adding DVB-C scan mode setting in TunerAcq function.
+
+   Modified file: pd_glue_dvbt2.c
+
+
+v0.8
+SONY 2012-07-27
+Optimizing tuner control code.
+(RSSI calculation especially.)
+
+   Modified file: sonyre227/sonyrf_ascot2e.c/h
+                  sonyre227/sonyrf_ascot2e_re227.c
+                  sonyrb221/sonyrf_ascot2e.c/h
+                  sonyrb221/sonyrf_ascot2e_rb221.c
+
+
+v0.9
+SONY 2012-08-03
+CXD2840 code was merged in one release package.
+Add DTMB support to RE227 driver.
+
+   Modified file: sonyre227/pd_tuner_re227.c
+                  sonyre227/sonyrf_ascot2e_re227.c
+
+   NOTE: Demod code was not changed.
+
+
+v0.10
+SONY 2012-08-16
+Optimizing tuner control code.
+
+   Modified file: sonyre227/sonyrf_ascot2e_re227.c
+                  sonyrb221/sonyrf_ascot2e_rb221.c
+
+
+v0.11
+SONY 2012-08-23
+Dynamic trap thresold modification for tuner driver.
+Modify CLI to add command for changing trap threshold.
+Modify CLI read/write command to specify bank.
+
+   Modified file: CXD2837/pd_glue_dvbt2.c
+                  sonyre227/sonyrf_ascot2e_re227.c/h
+                  sonyre227/pi_tuner_re227.c
+                  sonyrb221/sonyrf_ascot2e_rb221.c/h
+                  sonyrb221/pi_tuner_rb221.c
+
+   NOTE: Tuner_OP ID "itSetTrapThresold" is added for changing trap threshold.
+
+
+v0.12
+MTK 2012-08-30
+Driver refine: Refine pd_glue_dvbt2.c to fix some coding defects
+Line 645: noiseFigureDB1000 type defined to int32_t instead of uint32_t for warning of type convert in line 701 calculation.
+Modified file: CXD2837/pd_glue_dvbt2.c
+Add MTK platform related settings.Add itGetRSSI OP to get RSSI.Modify itGetSSIIndex OP to get SSIIndex.
+Modified file: sonyre227/pi_tuner_re227.c
+           sonyrb221/sonyrf_ascot2e_rb221.c
+Add MTK platform RSSI offset.
+Modified file: sonyre227/sonyrf_ascot2e_re227.c
+           sonyrb221/sonyrf_ascot2e_rb221.c
+Fix building warning.
+Modified file: sonyre227/sonyrf_i2c_MTK.c
+           CXD2837/sony_integ_dvbc.c
+
+
+v0.13
+MTK 2012-09-13
+Modify frequency boundary for MTK scan.
+Modified file:CXD2837/pd_glue_dvbt2.c
+              sonyre227/pi_tuner_re227.c
+              sonyrb221/pi_tuner_rb221.c
+Take off the additional tuning delay timing.
+Modified file: sonyre227/pi_tuner_re227.c
+               sonyrb221/pi_tuner_rb221.c
+
+
+v0.14
+SONY 2012-09-24
+*NOTE* This update includes previous Sony update on 8/28
+because this update was not merged to MTK source.
+
+Update for adding CXD2842 (DVB-T/T2/C/S/S2) support.
+SNR function optimization.
+RF level monitor function optimization for low level cases.
+DVB-T2 SQI/SSI monitor function modification for bad condition cases.
+Shared If SetConfig ID was removed because this setting is always enabled.
+Demod driver parameter optimization and code/comment beautifying.
+Tuner driver update (debug log was incorrect so fixed.)
+
+   Modified file: CXD2837/pd_glue_dvbt2.c
+                  CXD2837/sony_demod.c/h
+                  CXD2837/sony_demod_dvbt.c/h
+                  CXD2837/sony_demod_dvbt_monitor.c/h
+                  CXD2837/sony_demod_dvbt2.c/h
+                  CXD2837/sony_demod_dvbt2_monitor.c/h
+                  CXD2837/sony_demod_dvbc.c/h
+                  CXD2837/sony_demod_dvbc_monitor.c/h
+                  CXD2837/sony_integ.c/h
+                  CXD2837/sony_integ_dvbt_t2.c/h
+                  CXD2837/sony_integ_dvbc.c
+                  CXD2837/sony_tuner_terr_cable.h
+                  sonyre227/sonyrf_ascot2e_re227.c
+                  sonyre227/pi_tuner_re227.c
+                  sonyrb221/sonyrf_ascot2e_rb221.c
+                  sonyrb221/pi_tuner_rb221.c
+
+   NOTE: "CC_SONYDEMOD_CXD2842" macro should be defined if this driver is used for CXD2842.
+         Please ensure that MTK upper layer NEVER activate (connect) both terrestrial and satellite
+         SW module at same time.
+         RE227 driver can be used for PE221/PE227 module (terrestrial part).
+
+
+v0.15
+SONY 2012-10-19
+
+Demod parameter optimization for T2 FEF signal.
+DVB-T SQI monitor optimization.
+Demod driver code/comment beautifying.
+Avoid RFAGC value read in ASCOT2E RSSI read if DVB-C.
+
+   Modified file: CXD2837/sony_demod_dvbt2.c
+                  CXD2837/sony_demod_dvbt_monitor.c
+                  CXD2837/pd_glue_dvbt2.c
+                  CXD2837/sony_demod.c
+                  CXD2837/sony_integ_dvbt_t2.c
+                  CXD2837/sony_integ_dvbc.c
+                  sonyre227/sonyrf_ascot2e_re227.c
+                  sonyrb221/sonyrf_ascot2e_rb221.c
+
+v0.16
+MTK 2012-11-01
+Add Function to Get Modulator Information
+   Modified file: CXD2837/pd_glue_dvbt2.c
+
+
+v0.17
+SONY 2012-11-01
+
+Demod parameter setting was changed to optimize DVB-T BER period
+for stabilizing SQI value.
+Avoid RFAGC value read in ASCOT2E RSSI read for all broadcasting systems.
+
+   Modified file: CXD2837/pd_glue_dvbt2.c
+                  sonyre227/sonyrf_ascot2e_re227.c
+                  sonyrb221/sonyrf_ascot2e_rb221.c
+
+
+v0.18
+SONY 2012-11-13
+
+Demod parameter for DVB-C TS related setting was corrected.
+
+   Modified file: CXD2837/sony_demod_dvbc.c
+
+v0.19
+MTK 2012-11-13
+
+When TUNER_DVB_AUTO_T_T2 mode, HP Profile get from Middleware.
+
+   Modified file: CXD2837/pd_glue_dvbt2.c
+                  CXD2837/sony_integ_dvbt_t2.c
+
+v0.20
+SONY 2012-12-06
+
+DVB-T FEC auto recovery optimization was added.
+DVB-C 64QAM optimization was added.
+Terrestrial <-> Satellite switching code was modified for CXD2842.
+  Checks demod register and confirm that re-initialization is necessary or not.
+  (It comes from Satellite side discussion with Haibo-san.)
+
+   Modified file: CXD2837/pd_glue_dvbt2.c
+                  CXD2837/sony_demod_dvbt.c
+                  CXD2837/sony_demod_dvbc.c
+
+
+v0.21
+SONY 2012-12-17
+
+Tuner I2C communication was changed from I2C gateway to I2C repeater.
+NOTE: RE227(PE227)/RB221 driver uses CC_SONYDEMOD_CXD2837/CC_SONYDEMOD_CXD2842
+      macros to change I2C communication method depend on chip type.
+      Please do not forget to define them!
+
+   Modified file: CXD2837/pd_glue_dvbt2.c
+                  CXD2837/sony_demod.c
+                  sonyre227/pi_tuner_re227.c
+                  sonyre227/sonyrf_ascot2e_re227.c
+                  sonyrb221/pi_tuner_rb221.c
+                  sonyrb221/sonyrf_ascot2e_rb221.c
+
+
+v0.22
+SONY 2013-01-17
+
+DVB-T2 1.7MHz BW support was added.
+NOTE: "BW_1_7_MHz" and "SAW_BW_1_7M" should be defined in MTK source.
+
+   Modified file: CXD2837/pd_glue_dvbt2.c
+                  sonyre227/pi_tuner_re227.c
+                  sonyre227/sonyrf_ascot2e_re227.c
+                  sonyre227/sonyrf_ascot2e.c/h
+                  sonyrb221/pi_tuner_re227.c
+                  sonyrb221/sonyrf_ascot2e_re227.c
+                  sonyrb221/sonyrf_ascot2e.c/h
+
+
+v0.23
+SONY 2013-04-11
+
+DVB-C2 support was added.
+  If CXD2841 (DVB-T/T2/C/C2/S/S2) is used, please define
+  CC_SONYDEMOD_CXD2841 macro to enable satellite switching.
+DVB-T2 1.7MHz BW carrier offset monitor was fixed to calculate accurate value.
+
+   Modified file: CXD2837/pd_glue_dvbt2.c
+                  CXD2837/sony_demod.c
+                  CXD2837/sony_demod.h
+                  CXD2837/sony_demod_dvbt2_monitor.c
+                  CXD2837/sony_dvbc2.h (New)
+                  CXD2837/sony_demod_dvbc2.c/h (New)
+                  CXD2837/sony_demod_dvbc2_monitor.c/h (New)
+                  CXD2837/sony_integ_dvbc2.c/h (New)
+                  CXD2837/Makefile
+                  sonyre227/pi_tuner_re227.c
+                  sonyrb221/pi_tuner_re227.c
+
+
+v0.24
+SONY 2013-04-15
+
+DVBT2_TunerGetSignal DS ID and PLP ID support for DVB-C2.
+
+  Modified file: CXD2837/pd_glue_dvbt2.c
+
+v0.25
+MTK 2013-04-16
+
+Sync struct TUNER_DVBC2_DS_PLP_LIST name with MTK MW.
+
+  Modified file: CXD2837/pd_glue_dvbt2.c
+
+v0.26
+SONY 2013-07-24
+
+Change DVB-T BER period. (14 -> 16)
+
+  Modified file: CXD2837/pd_glue_dvbt2.c
+
+v0.27
+SONY 2013-10-24
+
+DVB-T Echo optimization for new Teracom spec.
+DVB-T2 related register optimization.(affect to DVB-C2 code too but no C2 behavior change.)
+Small fixes of several monitor functions.
+
+  Modified file: CXD2837/pd_glue_dvbt2.c (version number only)
+                 CXD2837/sony_demod_dvbt.c/h
+                 CXD2837/sony_demod_dvbt2.c
+                 CXD2837/sony_demod_dvbc2.c
+                 CXD2837/sony_demod_dvbt_monitor.c
+                 CXD2837/sony_demod_dvbc_monitor.c
+                 CXD2837/sony_demod_dvbt2_monitor.c
+
+v0.28
+SONY 2013-11-01
+
+DVB-T BER period switching depend on normal tuning or scanning.
+ - Normal Tune: BER period is set to 16 for SQI stabilization.
+ - Scan       : BER period is set to 14 for getting SQI quickly.
+
+  Modified file: CXD2837/pd_glue_dvbt2.c
