@@ -160,7 +160,9 @@ obj-$(CONFIG_IPACK_BUS)		+= ipack/
 obj-$(CONFIG_NTB)		+= ntb/
 
 ifeq ($(CONFIG_MT5890_DRIVERS),y)
+obj-$(CONFIG_MT5890_DRIVERS)    += mtk/mt5890/
 endif
 
 ifeq ($(CONFIG_MT5882_DRIVERS),y)
+obj-$(CONFIG_MT5882_DRIVERS)    += mtk/mt5882/
 endif
