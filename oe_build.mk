@@ -8,4 +8,5 @@ all :
 clean:
 			make clean
 			rm -rf kernel.pak
+			rm -rf uImage.bin_signed
 
