@@ -525,7 +525,7 @@ static long lgsnap_ioctl(struct file *filp, unsigned int cmd,
 	
 	switch (cmd) {
 	case LGSNAP_GET_IMAGE_SIZE:
-		ret = lgsnap_image_size;
+		ret = put_user(lgsnap_image_size, (long __user *)arg);
 		break;
 		
 	case LGSNAP_CREATE_IMAGE:
