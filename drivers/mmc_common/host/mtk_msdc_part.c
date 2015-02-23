@@ -286,7 +286,7 @@ int msdc_partread(int partno, uint64_t offset, uint64_t size, void *pvmem)
 	filp = filp_open(buff, O_RDONLY | O_NONBLOCK | O_SYNC, 0);
 	if (IS_ERR(filp))
 	{
-	    printk(KERN_ERR "[%s]Open %s failed: %d !!\n", __func__, buff, (int)filp);
+	  //  printk(KERN_ERR "[%s]Open %s failed: %d !!\n", __func__, buff, (int)filp);
 		sprintf(buff, "/dev/mmcblk%s%d", partno ? "0p" : "",partno);	
 		filp = filp_open(buff, O_RDONLY | O_NONBLOCK | O_SYNC, 0);
 	}
@@ -454,7 +454,7 @@ int msdc_partwrite(int partno, uint64_t offset, uint64_t size, void *pvmem)
 	filp = filp_open(buff, O_RDWR | O_NONBLOCK | O_SYNC, 0);
 	if (IS_ERR(filp))
 	{
-	    printk(KERN_ERR "[%s]Open %s failed: %d !!\n", __func__, buff, (int)filp);
+	   // printk(KERN_ERR "[%s]Open %s failed: %d !!\n", __func__, buff, (int)filp);
 		sprintf(buff, "/dev/mmcblk%s%d", partno ? "0p" : "",partno);	
 		filp = filp_open(buff, O_RDWR | O_NONBLOCK | O_SYNC, 0);
 	}
