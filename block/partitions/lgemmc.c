@@ -244,6 +244,7 @@ int lgemmc_get_partnum(const char *name)
 
 	return -ENODEV;
 }
+EXPORT_SYMBOL(lgemmc_get_partnum);
 
 char *lgemmc_get_partname(int partnum)
 {
