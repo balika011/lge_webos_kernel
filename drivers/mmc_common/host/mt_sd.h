@@ -523,6 +523,8 @@ enum {
 #define MSDC_IOCON_R_D_SMPL_SEL         ((0x01) << MSDC_IOCON_R_D_SMPL_SEL_SHIFT)
 #define MSDC_IOCON_W_D_SMPL_SHIFT       (8)
 #define MSDC_IOCON_W_D_SMPL_SEL         ((0x01) << MSDC_IOCON_W_D_SMPL_SHIFT)
+#define MSDC_IOCON_W_D_SMPL_SEL_SHIFT   (9)
+#define MSDC_IOCON_W_D_SMPL_SEL_SEL     ((0x01) << MSDC_IOCON_W_D_SMPL_SEL_SHIFT)
 #define MSDC_IOCON_W_D0SPL_SHIFT        (10)     
 #define MSDC_IOCON_W_D0SPL              ((0x01) << MSDC_IOCON_W_D0SPL_SHIFT)
 
