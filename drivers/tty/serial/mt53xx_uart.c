@@ -4,7 +4,7 @@
  * MT53xx UART driver
  *
  * Copyright (c) 2008-2012 MediaTek Inc.
- * $Author: dtvbm11 $
+ * $Author: p4admin $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,6 +17,9 @@
  * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
  *
  */
+#if defined(CONFIG_SERIAL_MT53XX_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#define SUPPORT_SYSRQ
+#endif
 
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -4984,7 +4987,7 @@ static int __init _mt53xx_uart_init(void)
 #endif
     }
 
-    printk(KERN_INFO "Serial: MT53xx driver $Revision: #1 $\n");
+    printk(KERN_INFO "Serial: MT53xx driver $Revision: #2 $\n");
     ret = uart_register_driver(&_mt53xx_uart_reg);
     printk(KERN_DEBUG "Serial: uart_register_driver %d\n", ret);
     if (ret)
@@ -5025,5 +5028,5 @@ module_init(_mt53xx_uart_init);
 module_exit(_mt53xx_uart_exit);
 
 MODULE_AUTHOR("MediaTek Inc.");
-MODULE_DESCRIPTION("MT53xx serial port driver $Revision: #1 $");
+MODULE_DESCRIPTION("MT53xx serial port driver $Revision: #2 $");
 MODULE_LICENSE("MKL");
