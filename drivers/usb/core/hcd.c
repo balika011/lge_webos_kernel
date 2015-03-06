@@ -46,6 +46,8 @@
 
 #include "usb.h"
 
+#include "../host/mtk_hcd.h"
+
 
 /*-------------------------------------------------------------------------*/
 
@@ -349,6 +351,25 @@ MODULE_PARM_DESC(authorized_default,
 		"Default USB device authorization: 0 is not authorized, 1 is "
 		"authorized, -1 is authorized except for wireless USB (default, "
 		"old behaviour");
+
+
+#ifndef USB_EpNotEnough_check
+#define USB_EpNotEnough_check
+#endif
+
+#ifdef USB_EpNotEnough_check
+/* epStatusErr_default behaviour:
+ * 0 is end point enough
+ * 1 is not enough
+ */
+unsigned epStatusErr_default = 0;
+EXPORT_SYMBOL_GPL(epStatusErr_default);
+module_param(epStatusErr_default, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(epStatusErr_default,
+		"Default USB end point status: 0 is end point enough, 1 is not enough");
+
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 /**
@@ -879,6 +900,61 @@ static struct attribute_group usb_bus_attr_group = {
 };
 
 
+#ifdef USB_EpNotEnough_check
+/*
+ * Show & store the current endpoint status value
+ */
+static ssize_t usb_host_epStatusErr_default_show(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+    unsigned PortStatus = 0;
+	MGC_LinuxCd *pThis = NULL;
+	struct usb_device *rh_usb_dev = to_usb_device(dev);
+    pThis = hcd_to_musbstruct(bus_to_hcd(rh_usb_dev->bus));
+    PortStatus = ((epStatusErr_default & (1<<pThis->bPortNum))==0)?0:1;
+    //printk("PortStatus = %d  pThis->bPortNum = %d \n",PortStatus,pThis->bPortNum);
+	return snprintf(buf, PAGE_SIZE, "%u\n", PortStatus);
+}
+
+static ssize_t usb_host_epStatusErr_default_store(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf, size_t size)
+{
+#if 0
+	ssize_t result;
+	unsigned val;
+
+	result = sscanf(buf, "%u\n", &val);
+	if (result == 1) {
+        epStatusErr_default = val;
+		result = size;
+	}
+	else
+		result = -EINVAL;
+	return result;
+#endif
+    return 0;
+}
+
+
+static DEVICE_ATTR(epStatusErr_default, 0644,
+	    usb_host_epStatusErr_default_show,
+	    usb_host_epStatusErr_default_store);
+
+
+/* Group all the USB bus attributes */
+static struct attribute *usb_endpoint_status[] = {
+		&dev_attr_epStatusErr_default.attr,
+		NULL,
+};
+
+static struct attribute_group usb_endpoint_status_group = {
+	.name = NULL,	/* we want them in the same directory */
+	.attrs = usb_endpoint_status,
+};
+
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -2572,6 +2648,20 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		       retval);
 		goto error_create_attr_group;
 	}
+
+
+#ifdef USB_EpNotEnough_check
+
+	retval = sysfs_create_group(&rhdev->dev.kobj, &usb_endpoint_status_group);
+	if (retval < 0) {
+		printk(KERN_ERR "Cannot register USB endpoint status: %d\n",
+		       retval);
+		goto error_create_attr_group;
+	}
+
+#endif
+
+    
 	if (hcd->uses_new_polling && HCD_POLL_RH(hcd))
 		usb_hcd_poll_rh_status(hcd);
 
@@ -2636,6 +2726,10 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 
 	usb_get_dev(rhdev);
 	sysfs_remove_group(&rhdev->dev.kobj, &usb_bus_attr_group);
+
+#ifdef USB_EpNotEnough_check
+	sysfs_remove_group(&rhdev->dev.kobj, &usb_endpoint_status_group);
+#endif
 
 	clear_bit(HCD_FLAG_RH_RUNNING, &hcd->flags);
 	if (HC_IS_RUNNING (hcd->state))

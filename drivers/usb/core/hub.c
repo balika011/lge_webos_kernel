@@ -32,6 +32,7 @@
 #include <asm/byteorder.h>
 
 #include "hub.h"
+#include "../host/mtk_hcd.h"
 
 /* if we are in debug mode, always announce new devices */
 //#ifdef DEBUG
@@ -42,6 +43,13 @@
 
 #define USB_VENDOR_GENESYS_LOGIC		0x05e3
 #define HUB_QUIRK_CHECK_PORT_AUTOSUSPEND	0x01
+
+/*
+* Endpoint status
+*/
+extern unsigned epStatusErr_default;
+//EXPORT_SYMBOL_GPL(EP_NotEnough);
+
 
 static inline int hub_is_superspeed(struct usb_device *hdev)
 {
@@ -2044,6 +2052,8 @@ void usb_disconnect(struct usb_device **pdev)
 {
 	struct usb_device	*udev = *pdev;
 	struct usb_hub		*hub = usb_hub_to_struct_hub(udev);
+
+	MGC_LinuxCd *pThis = NULL;
 	int			i;
 
 	/* mark the device as inactive, so any further urb submissions for
@@ -2053,6 +2063,11 @@ void usb_disconnect(struct usb_device **pdev)
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
 	dev_info(&udev->dev, "USB disconnect, device number %d\n",
 			udev->devnum);
+
+    pThis = hcd_to_musbstruct(bus_to_hcd(udev->bus));
+
+    epStatusErr_default &=(~(1<<pThis->bPortNum));
+    //printk("\033[0;34m [%s][%d] EP_NotEnough = %d portnum = %d \033[0m\n",__FUNCTION__,__LINE__,epStatusErr_default,pThis->bPortNum);
 
 	usb_lock_device(udev);
 

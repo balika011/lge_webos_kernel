@@ -4,7 +4,7 @@
  * MT53xx USB driver
  *
  * Copyright (c) 2008-2012 MediaTek Inc.
- * $Author: dtvbm11 $
+ * $Author: p4admin $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -56,6 +56,12 @@ extern int mgc_debuglevel;
 extern int mgc_epskipchk;
 extern int mgc_qmudisable;
 extern int mgc_qmuenable;
+
+
+/*
+* Endpoint status
+*/
+extern unsigned epStatusErr_default;
 
 #ifdef CONFIG_ARCH_MT85XX
 extern char usb_cust_model;
@@ -383,6 +389,10 @@ int MGC_CheckFreeEndpoint(struct usb_device *dev, int configuration)
                 if(!found)
                 {
                 	endfound[is_out] = 0;
+
+                    epStatusErr_default |=(1<<pThis->bPortNum);
+                    //printk("\033[0;34m [%s][%d] EP_NotEnough = %d portNum = %d\033[0m\n",__FUNCTION__,__LINE__,epStatusErr_default,pThis->bPortNum);
+                    
                     INFO("[USB] !!!!!!!!WARNING: Endpoint not enough! %s Ep\n", ((is_out) ? "Tx" : "Rx"));
                     //Set Device Base Class as a miscellaneous
                     //Set InterfaceClass & InterfaceSubClass to 0xEE as an 
