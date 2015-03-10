@@ -596,6 +596,7 @@ typedef struct
     u32 DDR52Delay;
     u32 HS200Sample;
     u32 HS200Delay;
+	u32 HS200Common;
 } EMMC_FLASH_DEV_T;
 
 //#define MSDC_CLK_TARGET    50000000, 50000000, 25000000, 12000000,  0
