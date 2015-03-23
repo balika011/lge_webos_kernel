@@ -2940,6 +2940,7 @@ void dump_stack_print_info(const char *log_lvl)
 
 	print_worker_info(log_lvl, current);
 }
+EXPORT_SYMBOL(dump_stack_print_info);
 
 /**
  * show_regs_print_info - print generic debug info for show_regs()
@@ -2956,5 +2957,6 @@ void show_regs_print_info(const char *log_lvl)
 	       log_lvl, current, current_thread_info(),
 	       task_thread_info(current));
 }
+EXPORT_SYMBOL(show_regs_print_info);
 
 #endif
