@@ -74,10 +74,10 @@
  *---------------------------------------------------------------------------*/
 /*-----------------------------------------------------------------------------
  *
- * $Author: dtvbm11 $
- * $Date: 2015/01/09 $
+ * $Author: p4admin $
+ * $Date: 2015/03/25 $
  * $RCSfile: cb_data.h,v $
- * $Revision: #1 $
+ * $Revision: #2 $
  *
  *---------------------------------------------------------------------------*/
 
@@ -189,6 +189,7 @@ typedef struct
     unsigned char u1DataLen;
     unsigned char u1EsId;
     unsigned char u1ProgressiveFrm;
+	unsigned char u1MultiMediaUserData;
 } DGUSERDATA_CB_T;
 
 
