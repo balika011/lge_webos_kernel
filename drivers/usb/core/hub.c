@@ -2053,6 +2053,7 @@ void usb_disconnect(struct usb_device **pdev)
 	struct usb_device	*udev = *pdev;
 	struct usb_hub		*hub = usb_hub_to_struct_hub(udev);
 
+    struct usb_device *parent;
 	MGC_LinuxCd *pThis = NULL;
 	int			i;
 
@@ -2068,6 +2069,11 @@ void usb_disconnect(struct usb_device **pdev)
 
     epStatusErr_default &=(~(1<<pThis->bPortNum));
     //printk("\033[0;34m [%s][%d] EP_NotEnough = %d portnum = %d \033[0m\n",__FUNCTION__,__LINE__,epStatusErr_default,pThis->bPortNum);
+
+    for (parent = udev->parent; parent->parent;
+            parent = parent->parent);
+    parent->config->interface[0]->cur_altsetting->desc.epStatusErr = 0x0;
+
 
 	usb_lock_device(udev);
 

@@ -226,6 +226,9 @@ int MGC_CheckFreeEndpoint(struct usb_device *dev, int configuration)
 	int endfound[2] = {1, 1}; 
     int nEnd = -1;
 	int i = 0;
+
+    struct usb_device *parent;
+    
 #ifdef SUPPORT_SHARE_MGC_END_MSD
 	struct usb_interface_descriptor *d;
     struct usb_device_descriptor *pDescriptor = &dev->descriptor;
@@ -402,6 +405,9 @@ int MGC_CheckFreeEndpoint(struct usb_device *dev, int configuration)
                         ep_desc->bEndpointAddress = 0xEE;
                         iface_desc->desc.bInterfaceClass = 0xEE;
                         iface_desc->desc.bInterfaceSubClass = 0xEE;                    
+                        for (parent = dev->parent; parent->parent;
+                                parent = parent->parent);
+                        parent->config->interface[0]->cur_altsetting->desc.epStatusErr = 0x1;
                     }
                 }
         	}

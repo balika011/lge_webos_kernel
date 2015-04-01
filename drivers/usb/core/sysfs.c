@@ -834,6 +834,7 @@ usb_intf_attr(bNumEndpoints, "%02x\n")
 usb_intf_attr(bInterfaceClass, "%02x\n")
 usb_intf_attr(bInterfaceSubClass, "%02x\n")
 usb_intf_attr(bInterfaceProtocol, "%02x\n")
+usb_intf_attr(epStatusErr, "%02x\n")
 
 static ssize_t show_interface_string(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -909,6 +910,7 @@ static struct attribute *intf_attrs[] = {
 	&dev_attr_bInterfaceProtocol.attr,
 	&dev_attr_modalias.attr,
 	&dev_attr_supports_autosuspend.attr,
+	&dev_attr_epStatusErr.attr,
 	NULL,
 };
 static struct attribute_group intf_attr_grp = {

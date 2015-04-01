@@ -359,6 +359,7 @@ struct usb_interface_descriptor {
 	__u8  bInterfaceSubClass;
 	__u8  bInterfaceProtocol;
 	__u8  iInterface;
+    __u8  epStatusErr;
 } __attribute__ ((packed));
 
 #define USB_DT_INTERFACE_SIZE		9
