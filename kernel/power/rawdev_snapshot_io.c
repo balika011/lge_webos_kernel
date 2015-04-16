@@ -132,7 +132,6 @@ void rawdev_close(fmode_t mode)
 		pr_debug("PM: Image device not initialised\n");
 		return;
 	}
-	
 	sync_blockdev(hib_resume_bdev);
 	blkdev_put(hib_resume_bdev, mode);
 }
@@ -171,16 +170,14 @@ static int rawdev_write_page(struct rawdev_handle *handle, void *buf,
 		 */
 		handle->reqd_free_pages = reqd_free_pages();
 	}
-	
-out:	
+
+out:
 	return error;
 }
 
-static int rawdev_writer_finish(void)
+static void rawdev_writer_finish(void)
 {
 	rawdev_close(FMODE_WRITE);
-
-	return 0;
 }
 
 /* We need to remember how much compressed data we need to read. */
@@ -206,7 +203,7 @@ static int rawdev_writer_finish(void)
 /**
  *	save_image - save the suspend image data
  */
- 
+
 static int save_image(struct rawdev_handle *handle,
 			struct snapshot_handle *snapshot,
 			unsigned int nr_to_write,
@@ -310,7 +307,7 @@ static int crc32_threadfn(void *data)
  */
 struct cmp_data {
 	struct task_struct *thr;                  /* thread */
-	struct crypto_comp *tfm;		  /* crypto struct */			
+	struct crypto_comp *tfm;		  /* crypto struct */
 	atomic_t ready;                           /* ready to start flag */
 	atomic_t stop;                            /* ready to stop flag */
 	int ret;                                  /* return code */
@@ -374,13 +371,13 @@ static void print_header(struct swsusp_info *info)
 	printk("image_pages = %lu\n", info->image_pages);
 	printk("pages = %lu\n", info->pages);
 	printk("size = %luMB(%lu)\n", MB(info->size), info->size);
-	
+
 	if(header->compress_algo)
 		printk("compressed(%s) image size = %luMB(%lu)\n", compress_type, MB(header->image_size), header->image_size);
 	else
 		printk("uncompressed image size = %luMB(%lu)\n", MB(header->image_size), header->image_size);
-		
-	if(header->crc != ~0) 
+
+	if(header->crc != ~0)
 		printk("crc = %u\n", header->crc);
 	else
 		printk("no crc image\n");
@@ -391,7 +388,7 @@ static void print_header(struct swsusp_info *info)
 	if (deps->nr_dep_parts) {
 		int i;
 		struct dep_part_info *info = &deps->dep_part_info[0];
-		
+
 		printk("snapshot dependency %d partitions\n", deps->nr_dep_parts);
 		printk(" name\t partnum\t %s\t %s\n", deps->value_name[0], deps->value_name[1]);
 
@@ -423,7 +420,7 @@ static struct pfn_merge_info *merge_adjacent_pfn(struct swsusp_info *info, struc
 	struct pfn_merge_info *pfn_merge_info;
 	struct snapshot_header *header = GET_SNAP_HEADER(info);
 
-	pfn_merge_info = kmalloc(info->image_pages * sizeof(struct pfn_merge_info), GFP_KERNEL);
+	pfn_merge_info = vmalloc(info->image_pages * sizeof(struct pfn_merge_info));
 	if (pfn_merge_info == NULL) {
 		printk("%s[%d] : can`t alloc output buffer to compress\n", __func__, __LINE__);
 		return NULL;
@@ -502,16 +499,18 @@ static int save_image_compress(struct rawdev_handle *handle,
 
 	/*
 	 * We'll limit the number of threads for compression to limit memory
-	 * footprint. 
-	 * change nr_thread = num_online_cpus() - 1 to  nr_thread = num_online_cpus() 
+	 * footprint.
+	 * change nr_thread = num_online_cpus() - 1 to  nr_thread = num_online_cpus()
 	 * for compress performance by sangseok.lee
 	 */
 	nr_threads = num_online_cpus();
 	nr_threads = clamp_val(nr_threads, 1, LZO_THREADS);
 
 	pfn_merge_info = merge_adjacent_pfn(info, snapshot);
-	if (pfn_merge_info == NULL)
+	if (pfn_merge_info == NULL) {
+		ret = -ENOMEM;
 		goto out_clean;
+	}
 
 	header = GET_SNAP_HEADER(info);
 
@@ -558,8 +557,9 @@ static int save_image_compress(struct rawdev_handle *handle,
 		}
 
 		data[thr].tfm = crypto_alloc_comp(compress_type, 0, 0);
-		if (data[thr].tfm == NULL) {
-			printk("PM: crypto_alloc_comp fail\n");
+		if ( IS_ERR(data[thr].tfm) ) {
+			printk(KERN_ERR "PM: Can't allocate compressor transform\n");
+			ret = -ENOMEM;
 			goto out_clean;
 		}
 	}
@@ -589,7 +589,7 @@ static int save_image_compress(struct rawdev_handle *handle,
 	nr_pages = 0;
 	bio = NULL;
 	do_gettimeofday(&start);
-	
+
 	pfn_mi_index = 0;
 	for (;;) {
 		for (thr = 0; thr < nr_threads; thr++) {
@@ -631,21 +631,7 @@ static int save_image_compress(struct rawdev_handle *handle,
 
 			ret = data[thr].ret;
 
-			if (ret < 0) {
-				printk(KERN_ERR "PM: LZO compression failed\n");
-				goto out_finish;
-			}
-
-			if (unlikely(!data[thr].cmp_len ||
-			             data[thr].cmp_len >
-			             lzo1x_worst_compress(data[thr].unc_len))) {
-				printk(KERN_ERR
-				       "PM: Invalid %s compressed length\n", compress_type);
-				ret = -1;
-				goto out_finish;
-			}
-
-			if(data[thr].cmp_len >= data[thr].unc_len) {
+			if( (ret < 0) || !data[thr].cmp_len || (data[thr].cmp_len >= data[thr].unc_len) ) {
 				len = data[thr].unc_len;
 				buf = data[thr].unc;
 				pfn_merge_info[pfn_mi_index - run_threads + thr].compressed = 0;
@@ -671,10 +657,10 @@ static int save_image_compress(struct rawdev_handle *handle,
 
 			/* update metadata with compressed block size */
 			pfn_merge_info[pfn_mi_index - run_threads + thr].info.compblock_len = len;
-			
+
 			/* Write payload (compressed page) */
 			left_len = len;
-			
+
 			while (left_len > 0) {
 				if(left_len > PAGE_SIZE - pgoff) {
 					slice = PAGE_SIZE - pgoff;
@@ -686,7 +672,7 @@ static int save_image_compress(struct rawdev_handle *handle,
 				memcpy((void *)(page + pgoff), buf, slice);
 				pgoff += slice;
 				buf += slice;
-				
+
 				if(pgoff == PAGE_SIZE) {
 					rawdev_write_page(handle, page, &bio);
 					pgoff = 0;
@@ -714,11 +700,11 @@ static int save_image_compress(struct rawdev_handle *handle,
 			slice = left_len;
 			left_len = 0;
 		}
-		
+
 		memcpy((void *)(page + pgoff), buf, slice);
 		pgoff += slice;
 		buf += slice;
-		
+
 		if(pgoff == PAGE_SIZE) {
 			rawdev_write_page(handle, page, &bio);
 			pgoff = 0;
@@ -726,7 +712,7 @@ static int save_image_compress(struct rawdev_handle *handle,
 	}
 	if(pgoff != 0)
 		rawdev_write_page(handle, page, &bio);
-	
+
 out_finish:
 	err2 = hib_wait_on_bio_chain(&bio);
 	do_gettimeofday(&stop);
@@ -746,12 +732,15 @@ out_clean:
 		for (thr = 0; thr < nr_threads; thr++) {
 			if (data[thr].thr)
 				kthread_stop(data[thr].thr);
-			
+
 			crypto_free_comp(data[thr].tfm);
 		}
 		vfree(data);
 	}
 	if (page) free_page((unsigned long)page);
+
+	if (pfn_merge_info)
+		vfree(pfn_merge_info);
 
 	return ret;
 
@@ -764,7 +753,7 @@ int set_snapshot_header_dep_parts(struct snapshot_header *header)
 	extern int lgemmc_get_partnum(const char *name);
 	extern unsigned int lgemmc_get_filesize(int partnum);
 	extern unsigned int lgemmc_get_sw_version(int partnum);
-	
+
 	struct dep_parts *deps = &header->deps;
 	struct dep_part_info *info = &deps->dep_part_info[0];
 	char *p, *copy, *name;
@@ -803,7 +792,7 @@ int set_snapshot_header_dep_parts(struct snapshot_header *header)
 		}
 	}
 	deps->nr_dep_parts = i;
-	
+
 	kfree(copy);
 	return 0;
 }
@@ -829,7 +818,7 @@ int preset_snapshot_header(struct snapshot_header *header)
 		header->image_size = PAGE_SIZE;
 	else
 		header->image_size = 0;
-		
+
 	header->pfn_mi_cnt = 0;
 	header->metadata_start_offset_for_comp = PAGE_SIZE;
 	header->crc = ~0;
@@ -879,7 +868,7 @@ int lgsnap_write_magic(void)
 
 	kfree(info);
 out_finish:
-	error = rawdev_writer_finish();
+	rawdev_writer_finish();
 
 	return error;
 }
@@ -923,26 +912,28 @@ int rawdev_snapshot_write(unsigned int flags)
 	if (error < PAGE_SIZE) {
 		if (error >= 0)
 			error = -EFAULT;
-
+		printk(KERN_ERR "PM: Cannot read swsusp_info\n");
 		goto out_finish;
 	}
 
 	/* Make header copy for last update */
-	info = kmalloc(sizeof(struct swsusp_info), GFP_KERNEL);
+	info = (void *)__get_free_page(__GFP_WAIT | __GFP_HIGH);
 	if (info == NULL) {
-		printk("%s[%d] Can`t allocate kernel buffer\n", __func__, __LINE__);
-		error = -EFAULT;
+		printk(KERN_ERR "PM: Cannot allocate a page for swsusp_info\n");
+		error = -ENOMEM;
 		goto out_finish;
 	}
-	
+
 	memcpy((void *)info, data_of(snapshot), sizeof(struct swsusp_info));
 
 	header = GET_SNAP_HEADER(info);
 
 	/* Preset metadata in snapshot header */
 	error = preset_snapshot_header(header);
-	if (error < 0)
+	if (error < 0) {
+		printk(KERN_ERR "PM: Cannot set snapshot_header with default values\n");
 		goto free_info;
+	}
 
 	/* -1 means header page, image_pages means payload pages except pages for metadata */
 	nr_meta_pages = info->pages - info->image_pages - 1;
@@ -958,19 +949,19 @@ int rawdev_snapshot_write(unsigned int flags)
 	handle.cur_pos = 0;
 
 	LGSNAP_SET_MAGIC(header);
-	
+
 	rawdev_write_page(&handle, info, NULL);
 
 	print_header(info);
-	
+
 	lgsnap_image_size = header->image_size;
 
 	printk("Start of resume sequence atfer making hibernation image\n");
 
 free_info:
-	kfree(info);
+	free_page((unsigned long)info);
 out_finish:
-	error = rawdev_writer_finish();
+	rawdev_writer_finish();
 
 	return error;
 }
